@@ -2,6 +2,7 @@
 set -euo pipefail
 
 version_file="${VERSION_FILE:-app/build.gradle.kts}"
+script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
 source_name="$(sed -nE 's/^[[:space:]]*versionName[[:space:]]*=.*"([^"]+)".*/\1/p' "$version_file" | head -n1)"
 source_code="$(sed -nE 's/^[[:space:]]*versionCode[[:space:]]*=*[[:space:]]*([0-9]+).*/\1/p' "$version_file" | head -n1)"
@@ -68,3 +69,4 @@ printf 'channel=%s\n' "$channel"
 printf 'full_name=%s\n' "$full_version"
 printf 'full_tag=v%s\n' "$full_version"
 printf 'prev_stable_tag=%s\n' "$previous_stable_tag"
+printf 'ios_version=%s\n' "$(bash "$script_dir/resolve-ios-version.sh" "$full_version")"

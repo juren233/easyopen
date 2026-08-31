@@ -8,6 +8,7 @@ extracted/jadx/
 extracted/single/
 extracted/device-verify/*.apk
 DEBUGGING_MISTAKES.md
+docs/
 
 # Local release signing material; configure GitHub Actions with the matching secrets.
 keystore.properties

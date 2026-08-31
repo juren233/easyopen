@@ -1,0 +1,110 @@
+name: iOS IPA Build
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ios-ipa-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 45
+
+    steps:
+      - name: 拉取代码 Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: 版本检测 Version Gate
+        id: gate
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          bash .github/scripts/resolve-version-gate.sh
+
+      - name: 安装 JDK Setup Java
+        if: steps.gate.outputs.skip != 'true'
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: 安装 Android SDK Setup Android SDK
+        if: steps.gate.outputs.skip != 'true'
+        uses: android-actions/setup-android@v4
+        with:
+          packages: platform-tools platforms;android-37.0 build-tools;37.0.0
+
+      - name: 配置 Gradle Setup Gradle
+        if: steps.gate.outputs.skip != 'true'
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: wrapper
+          cache-read-only: ${{ github.event_name == 'pull_request' }}
+
+      - name: 检查 Xcode Check Xcode
+        if: steps.gate.outputs.skip != 'true'
+        run: |
+          set -euo pipefail
+          xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-version
+          swift --version
+
+      - name: 授权脚本 Grant Permission
+        if: steps.gate.outputs.skip != 'true'
+        run: chmod +x gradlew .github/scripts/*.sh
+
+      - name: 验证版本转换 Version Mapping Test
+        if: steps.gate.outputs.skip != 'true'
+        run: bash .github/scripts/test-version-resolution.sh
+
+      - name: 构建未签名 IPA Build Unsigned IPA
+        id: build
+        if: steps.gate.outputs.skip != 'true'
+        env:
+          FULL_NAME: ${{ steps.gate.outputs.full_name }}
+          IOS_VERSION: ${{ steps.gate.outputs.ios_version }}
+          VERSION_CODE: ${{ steps.gate.outputs.code }}
+          OUTPUT_NAME: EasyOpen-iOS-v${{ steps.gate.outputs.full_name }}-${{ steps.gate.outputs.code }}.ipa
+        run: |
+          set -euo pipefail
+          .github/scripts/build-unsigned-ipa.sh
+
+      - name: 写入版本元数据 Write Version Metadata
+        if: steps.gate.outputs.skip != 'true'
+        env:
+          FULL_NAME: ${{ steps.gate.outputs.full_name }}
+          IOS_VERSION: ${{ steps.gate.outputs.ios_version }}
+          VERSION_CODE: ${{ steps.gate.outputs.code }}
+          CHANNEL: ${{ steps.gate.outputs.channel }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          {
+            printf 'android_display_version=%s\n' "$FULL_NAME"
+            printf 'ios_bundle_short_version=%s\n' "$IOS_VERSION"
+            printf 'ios_bundle_version=%s\n' "$VERSION_CODE"
+            printf 'channel=%s\n' "$CHANNEL"
+            printf 'commit=%s\n' "$COMMIT_SHA"
+          } > EasyOpen-iOS-build-metadata.txt
+
+      - name: 上传 IPA 构建产物 Upload IPA Artifact
+        if: steps.gate.outputs.skip != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: EasyOpen-iOS-v${{ steps.gate.outputs.full_name }}-${{ steps.gate.outputs.code }}
+          path: |
+            ${{ steps.build.outputs.ipa_name }}
+            EasyOpen-iOS-build-metadata.txt
+          if-no-files-found: error
+          retention-days: 14

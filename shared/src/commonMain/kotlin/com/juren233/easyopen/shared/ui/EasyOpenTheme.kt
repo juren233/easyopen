@@ -1,4 +1,4 @@
-package com.juren233.easyopen.ui
+package com.juren233.easyopen.shared.ui
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -7,7 +7,7 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.theme.ThemeController
 
 @Composable
-internal fun EasyOpenTheme(
+fun EasyOpenTheme(
     themeMode: Int,
     monetEnabled: Boolean,
     content: @Composable () -> Unit,

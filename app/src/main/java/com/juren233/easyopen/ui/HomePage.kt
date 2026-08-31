@@ -41,6 +41,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.juren233.easyopen.R
 import com.juren233.easyopen.ble.BleDoorController
+import com.juren233.easyopen.shared.ui.MiuixBlurredBar
+import com.juren233.easyopen.shared.ui.rememberMiuixBlurBackdrop
 import com.juren233.easyopen.ble.BleState
 import com.juren233.easyopen.ble.OpenerConnectionStatus
 import com.juren233.easyopen.data.DeviceProfile

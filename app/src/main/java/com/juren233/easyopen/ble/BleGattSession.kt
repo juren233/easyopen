@@ -218,6 +218,7 @@ internal class BleGattSession(
         completeRelease()
     }
 
+    @SuppressLint("MissingPermission")
     fun reset() {
         mainHandler.removeCallbacksAndMessages(null)
         gatt?.let { runCatching { it.disconnect() } }

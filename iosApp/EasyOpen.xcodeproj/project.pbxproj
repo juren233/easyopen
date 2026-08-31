@@ -1,0 +1,224 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		A1000000000000000000000A /* EasyOpenApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000006 /* EasyOpenApp.swift */; };
+		A1000000000000000000000B /* EasyOpenShared.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A10000000000000000000008 /* EasyOpenShared.framework */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		A10000000000000000000009 /* EasyOpen.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = EasyOpen.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A10000000000000000000006 /* EasyOpenApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EasyOpenApp.swift; sourceTree = "<group>"; };
+		A10000000000000000000007 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		A10000000000000000000008 /* EasyOpenShared.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; name = EasyOpenShared.framework; path = ../shared/build/bin/iosArm64/releaseFramework/EasyOpenShared.framework; sourceTree = SOURCE_ROOT; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		A1000000000000000000000D /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A1000000000000000000000B /* EasyOpenShared.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		A10000000000000000000003 = {
+			isa = PBXGroup;
+			children = (
+				A10000000000000000000005 /* EasyOpen */,
+				A10000000000000000000004 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		A10000000000000000000004 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				A10000000000000000000009 /* EasyOpen.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		A10000000000000000000005 /* EasyOpen */ = {
+			isa = PBXGroup;
+			children = (
+				A10000000000000000000006 /* EasyOpenApp.swift */,
+				A10000000000000000000007 /* Info.plist */,
+				A10000000000000000000008 /* EasyOpenShared.framework */,
+			);
+			path = EasyOpen;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		A10000000000000000000002 /* EasyOpen */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A10000000000000000000010 /* Build configuration list for PBXNativeTarget "EasyOpen" */;
+			buildPhases = (
+				A1000000000000000000000C /* Sources */,
+				A1000000000000000000000D /* Frameworks */,
+				A1000000000000000000000E /* Resources */,
+			);
+			buildRules = ();
+			dependencies = ();
+			name = EasyOpen;
+			productName = EasyOpen;
+			productReference = A10000000000000000000009 /* EasyOpen.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		A10000000000000000000001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastUpgradeCheck = 1640;
+				TargetAttributes = {
+					A10000000000000000000002 = {
+						CreatedOnToolsVersion = 16.4;
+					};
+				};
+			};
+			buildConfigurationList = A1000000000000000000000F /* Build configuration list for PBXProject "EasyOpen" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = A10000000000000000000003;
+			productRefGroup = A10000000000000000000004 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				A10000000000000000000002 /* EasyOpen */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		A1000000000000000000000E /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = ();
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		A1000000000000000000000C /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A1000000000000000000000A /* EasyOpenApp.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		A10000000000000000000011 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		A10000000000000000000012 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		A10000000000000000000013 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGNING_ALLOWED = NO;
+				CODE_SIGNING_REQUIRED = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				FRAMEWORK_SEARCH_PATHS = ("$(inherited)", "$(SRCROOT)/../shared/build/bin/iosArm64/debugFramework");
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = EasyOpen/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks");
+				MARKETING_VERSION = 1.1.0;
+				OTHER_LDFLAGS = ("$(inherited)", "-framework", EasyOpenShared);
+				PRODUCT_BUNDLE_IDENTIFIER = com.juren233.easyopen.ios;
+				PRODUCT_NAME = EasyOpen;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		A10000000000000000000014 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGNING_ALLOWED = NO;
+				CODE_SIGNING_REQUIRED = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				FRAMEWORK_SEARCH_PATHS = ("$(inherited)", "$(SRCROOT)/../shared/build/bin/iosArm64/releaseFramework");
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = EasyOpen/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks");
+				MARKETING_VERSION = 1.1.0;
+				OTHER_LDFLAGS = ("$(inherited)", "-framework", EasyOpenShared);
+				PRODUCT_BUNDLE_IDENTIFIER = com.juren233.easyopen.ios;
+				PRODUCT_NAME = EasyOpen;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		A1000000000000000000000F /* Build configuration list for PBXProject "EasyOpen" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A10000000000000000000011 /* Debug */,
+				A10000000000000000000012 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A10000000000000000000010 /* Build configuration list for PBXNativeTarget "EasyOpen" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A10000000000000000000013 /* Debug */,
+				A10000000000000000000014 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = A10000000000000000000001 /* Project object */;
+}

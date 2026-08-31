@@ -1,0 +1,102 @@
+name: iOS IPA Validation
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ios-ipa-validation-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 45
+
+    steps:
+      - name: 拉取代码 Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: 解析 Android 版本并强制构建 Resolve Version
+        id: gate
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          bash .github/scripts/resolve-version-gate.sh
+
+      - name: 安装 JDK Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: 安装 Android SDK Setup Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          packages: platform-tools platforms;android-37.0 build-tools;37.0.0
+
+      - name: 配置 Gradle Setup Gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: wrapper
+          cache-read-only: true
+
+      - name: 检查 Xcode Check Xcode
+        run: |
+          set -euo pipefail
+          xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-version
+          swift --version
+
+      - name: 授权脚本 Grant Permission
+        run: chmod +x gradlew .github/scripts/*.sh
+
+      - name: 验证版本转换 Version Mapping Test
+        run: bash .github/scripts/test-version-resolution.sh
+
+      - name: 构建未签名 IPA Build Unsigned IPA
+        id: build
+        env:
+          FULL_NAME: ${{ steps.gate.outputs.full_name }}
+          IOS_VERSION: ${{ steps.gate.outputs.ios_version }}
+          VERSION_CODE: ${{ steps.gate.outputs.code }}
+          OUTPUT_NAME: EasyOpen-iOS-validation-${{ github.sha }}.ipa
+        run: |
+          set -euo pipefail
+          .github/scripts/build-unsigned-ipa.sh
+
+      - name: 写入验证元数据 Write Validation Metadata
+        env:
+          FULL_NAME: ${{ steps.gate.outputs.full_name }}
+          IOS_VERSION: ${{ steps.gate.outputs.ios_version }}
+          VERSION_CODE: ${{ steps.gate.outputs.code }}
+          CHANNEL: ${{ steps.gate.outputs.channel }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          {
+            printf 'validation=true\n'
+            printf 'android_display_version=%s\n' "$FULL_NAME"
+            printf 'ios_bundle_short_version=%s\n' "$IOS_VERSION"
+            printf 'ios_bundle_version=%s\n' "$VERSION_CODE"
+            printf 'channel=%s\n' "$CHANNEL"
+            printf 'commit=%s\n' "$COMMIT_SHA"
+          } > EasyOpen-iOS-validation-metadata.txt
+
+      - name: 上传验证产物 Upload Validation Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: EasyOpen-iOS-validation-${{ github.sha }}
+          path: |
+            ${{ steps.build.outputs.ipa_name }}
+            EasyOpen-iOS-validation-metadata.txt
+          if-no-files-found: error
+          retention-days: 7

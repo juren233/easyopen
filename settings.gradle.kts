@@ -16,4 +16,4 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "EasyOpen"
-include(":app")
+include(":app", ":shared")

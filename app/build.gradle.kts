@@ -49,7 +49,7 @@ android {
         minSdk = 33
         targetSdk = 37
         versionCode = 48
-        versionName = ciVersionName ?: "1.0.2"
+        versionName = ciVersionName ?: "1.1.0-canary"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -93,6 +93,7 @@ android {
 }
 
 dependencies {
+    implementation(project(":shared"))
     implementation("androidx.core:core-ktx:1.17.0")
     implementation("androidx.activity:activity-compose:1.12.4")
 

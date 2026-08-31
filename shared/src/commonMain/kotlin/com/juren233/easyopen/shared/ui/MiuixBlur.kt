@@ -1,4 +1,4 @@
-package com.juren233.easyopen.ui
+package com.juren233.easyopen.shared.ui
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
@@ -14,7 +14,7 @@ import top.yukonga.miuix.kmp.blur.textureBlur
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 @Composable
-internal fun rememberMiuixBlurBackdrop(): LayerBackdrop? {
+fun rememberMiuixBlurBackdrop(): LayerBackdrop? {
     if (!isRuntimeShaderSupported()) return null
     val surfaceColor = MiuixTheme.colorScheme.surface
     return rememberLayerBackdrop {
@@ -24,7 +24,7 @@ internal fun rememberMiuixBlurBackdrop(): LayerBackdrop? {
 }
 
 @Composable
-internal fun MiuixBlurredBar(
+fun MiuixBlurredBar(
     backdrop: LayerBackdrop?,
     blurEnabled: Boolean,
     content: @Composable () -> Unit,
