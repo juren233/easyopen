@@ -9,7 +9,6 @@
 /* Begin PBXBuildFile section */
 		A1000000000000000000000A /* EasyOpenApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000006 /* EasyOpenApp.swift */; };
 		A1000000000000000000000B /* EasyOpenShared.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A10000000000000000000008 /* EasyOpenShared.framework */; };
-		A10000000000000000000015 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000016 /* LaunchScreen.storyboard */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -17,7 +16,6 @@
 		A10000000000000000000006 /* EasyOpenApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EasyOpenApp.swift; sourceTree = "<group>"; };
 		A10000000000000000000007 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A10000000000000000000008 /* EasyOpenShared.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; name = EasyOpenShared.framework; path = ../shared/build/bin/iosArm64/releaseFramework/EasyOpenShared.framework; sourceTree = SOURCE_ROOT; };
-		A10000000000000000000016 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -54,7 +52,6 @@
 				A10000000000000000000006 /* EasyOpenApp.swift */,
 				A10000000000000000000007 /* Info.plist */,
 				A10000000000000000000008 /* EasyOpenShared.framework */,
-				A10000000000000000000016 /* LaunchScreen.storyboard */,
 			);
 			path = EasyOpen;
 			sourceTree = "<group>";
@@ -113,7 +110,6 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				A10000000000000000000015 /* LaunchScreen.storyboard in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

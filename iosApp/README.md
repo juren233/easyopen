@@ -8,7 +8,7 @@
 - `iosApp/EasyOpen.xcodeproj` 负责生成 iOS App。
 - `.github/scripts/build-unsigned-ipa.sh` 通过 `xcodebuild archive CODE_SIGNING_ALLOWED=NO` 归档；随后显式执行 `:shared:syncComposeResourcesForIos`，把 `compose-resources/` 同步到归档 App，再手动打包 `Payload/*.app` 为未签名 `.ipa`。
 - iOS 宿主当前显式关闭 Compose 的 `parallelRendering`，让首帧渲染回到主线程；这是针对 iOS 27.0 真机首帧在 Compose 独立渲染线程上触发 `SIGABRT` 的稳定性保护，待真机回归通过后再评估恢复并行渲染。
-- iOS 宿主包含 `LaunchScreen.storyboard` 并通过 `UILaunchStoryboardName` 注册，避免缺少启动屏时被 iOS 以旧版 2:3 兼容尺寸上下 letterbox；SwiftUI 容器同时使用最大尺寸和 `ignoresSafeArea()`，让 shared Compose 页面占满窗口。
+- iOS 宿主使用 Info.plist 的 `UILaunchScreen` 启动屏配置，不使用固定设备尺寸的 `LaunchScreen.storyboard`；这样不会把 iPhone 预览画布尺寸误认为运行时窗口尺寸。SwiftUI 容器同时使用最大尺寸和 `ignoresSafeArea()`，让 shared Compose 页面占满窗口。
 - iOS 宿主现在与 Android 一样使用 shared `EasyOpenNavigator` 管理 Home、添加开门器和设置页面；无已保存设备的首启是不可返回的根页面，有已保存设备时添加开门器才可返回。
 - 已保存的 iOS 开门器进入主页后会主动恢复 CoreBluetooth 连接；首次授权蓝牙时，如果首个扫描请求早于授权回调到达，扫描会在状态变为 powered on 后自动恢复。
 - iOS 尚未完成二维码、Core NFC 和备份文件适配；这些入口在 iOS 上暂时不渲染，避免出现点击无反应的死按钮。Android 仍保留完整入口，待对应平台适配完成后再打开。

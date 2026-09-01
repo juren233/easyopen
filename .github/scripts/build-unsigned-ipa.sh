@@ -98,12 +98,15 @@ test "$compose_resource_files" -gt 0
 actual_ios_version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app_path/Info.plist")"
 actual_version_code="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$app_path/Info.plist")"
 disable_minimum_frame_duration="$(/usr/libexec/PlistBuddy -c 'Print :CADisableMinimumFrameDurationOnPhone' "$app_path/Info.plist")"
-launch_storyboard_name="$(/usr/libexec/PlistBuddy -c 'Print :UILaunchStoryboardName' "$app_path/Info.plist")"
+launch_screen_type="$(/usr/libexec/PlistBuddy -c 'Print :UILaunchScreen' "$app_path/Info.plist" 2>/dev/null || true)"
 test "$actual_ios_version" = "$ios_version"
 test "$actual_version_code" = "$version_code"
 test "$disable_minimum_frame_duration" = "true"
-test "$launch_storyboard_name" = "LaunchScreen"
-test -d "$app_path/Base.lproj/LaunchScreen.storyboardc"
+[[ "$launch_screen_type" == Dict* ]]
+if /usr/libexec/PlistBuddy -c 'Print :UILaunchStoryboardName' "$app_path/Info.plist" >/dev/null 2>&1; then
+  printf 'Legacy UILaunchStoryboardName must not be present when using UILaunchScreen.\n' >&2
+  exit 1
+fi
 
 app_executable_name="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$app_path/Info.plist")"
 app_executable="$app_path/$app_executable_name"
@@ -125,7 +128,7 @@ fi
   printf 'ios_bundle_short_version=%s\n' "$actual_ios_version"
   printf 'ios_bundle_version=%s\n' "$actual_version_code"
   printf 'CADisableMinimumFrameDurationOnPhone=%s\n' "$disable_minimum_frame_duration"
-  printf 'UILaunchStoryboardName=%s\n' "$launch_storyboard_name"
+  printf 'UILaunchScreen=%s\n' "$launch_screen_type"
   printf 'app_architectures=%s\n' "$app_architectures"
   printf 'framework_architectures=%s\n' "$framework_architectures"
   printf 'app_uuid=%s\n' "$app_uuid"
