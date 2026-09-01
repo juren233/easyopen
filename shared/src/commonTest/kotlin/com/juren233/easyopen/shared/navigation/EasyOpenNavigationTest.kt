@@ -27,4 +27,18 @@ class EasyOpenNavigationTest {
         assertEquals(1, stack.size)
         assertEquals(EasyOpenRoute.Home, stack[0])
     }
+
+    @Test
+    fun navigatorCanReplaceACompletedFlow() {
+        val stack = mutableListOf<androidx.navigation3.runtime.NavKey>(
+            EasyOpenRoute.Home,
+            EasyOpenRoute.AddDevice,
+        )
+        val navigator = EasyOpenNavigator(stack)
+
+        navigator.replace(EasyOpenRoute.Home)
+
+        assertEquals(1, stack.size)
+        assertEquals(EasyOpenRoute.Home, stack.single())
+    }
 }

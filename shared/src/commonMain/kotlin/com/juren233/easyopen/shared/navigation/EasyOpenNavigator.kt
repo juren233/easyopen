@@ -17,4 +17,10 @@ class EasyOpenNavigator(
             backStack.removeAt(backStack.lastIndex)
         }
     }
+
+    /** Replace the current flow with a new root route after a completed flow. */
+    fun replace(route: NavKey) {
+        backStack.clear()
+        backStack.add(route)
+    }
 }

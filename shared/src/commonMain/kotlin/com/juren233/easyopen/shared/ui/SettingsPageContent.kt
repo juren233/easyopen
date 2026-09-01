@@ -54,6 +54,7 @@ fun SettingsPageContent(
     onCustomAutoConnectRssiChange: (Int) -> Unit,
     onBackupRequested: () -> Unit,
     onRestoreRequested: () -> Unit,
+    showBackupActions: Boolean = true,
 ) {
     val scrollBehavior = MiuixScrollBehavior()
     val themeOptions = listOf(
@@ -114,23 +115,25 @@ fun SettingsPageContent(
                     onCustomAutoConnectRssiChange = onCustomAutoConnectRssiChange,
                 )
             }
-            item { SmallTitle(text = stringResource(Res.string.data_category)) }
-            item {
-                Card(
-                    modifier = Modifier
-                        .padding(horizontal = 12.dp)
-                        .padding(bottom = 12.dp)
-                        .fillMaxWidth(),
-                ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
-                        ArrowPreference(
-                            title = stringResource(Res.string.backup_title),
-                            onClick = onBackupRequested,
-                        )
-                        ArrowPreference(
-                            title = stringResource(Res.string.restore_title),
-                            onClick = onRestoreRequested,
-                        )
+            if (showBackupActions) {
+                item { SmallTitle(text = stringResource(Res.string.data_category)) }
+                item {
+                    Card(
+                        modifier = Modifier
+                            .padding(horizontal = 12.dp)
+                            .padding(bottom = 12.dp)
+                            .fillMaxWidth(),
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
+                            ArrowPreference(
+                                title = stringResource(Res.string.backup_title),
+                                onClick = onBackupRequested,
+                            )
+                            ArrowPreference(
+                                title = stringResource(Res.string.restore_title),
+                                onClick = onRestoreRequested,
+                            )
+                        }
                     }
                 }
             }

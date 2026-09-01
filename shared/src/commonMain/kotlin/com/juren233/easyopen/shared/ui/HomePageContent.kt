@@ -93,6 +93,9 @@ fun HomePageContent(
     onProfileChange: (CoreDeviceProfile) -> Unit,
     onNfcWriteRequested: () -> Unit,
     onUpdateRequested: () -> Unit,
+    showScannerAction: Boolean = true,
+    showShareAction: Boolean = true,
+    showNfcAction: Boolean = true,
 ) {
     val activeDevice = snapshot.activeDevice
     val activeProfile = activeDevice.profile
@@ -124,19 +127,23 @@ fun HomePageContent(
                     title = stringResource(Res.string.home_title),
                     scrollBehavior = scrollBehavior,
                     navigationIcon = {
-                        IconButton(onClick = onOpenScanner) {
-                            Icon(
-                                imageVector = MiuixIcons.Scan,
-                                contentDescription = stringResource(Res.string.scan_import_title),
-                            )
+                        if (showScannerAction) {
+                            IconButton(onClick = onOpenScanner) {
+                                Icon(
+                                    imageVector = MiuixIcons.Scan,
+                                    contentDescription = stringResource(Res.string.scan_import_title),
+                                )
+                            }
                         }
                     },
                     actions = {
-                        IconButton(onClick = onShareRequested) {
-                            Icon(
-                                imageVector = MiuixIcons.Share,
-                                contentDescription = stringResource(Res.string.share_opener_title),
-                            )
+                        if (showShareAction) {
+                            IconButton(onClick = onShareRequested) {
+                                Icon(
+                                    imageVector = MiuixIcons.Share,
+                                    contentDescription = stringResource(Res.string.share_opener_title),
+                                )
+                            }
                         }
                         IconButton(onClick = onOpenSettings) {
                             Icon(
@@ -306,12 +313,14 @@ fun HomePageContent(
                                     NumberField(stringResource(Res.string.hold_duration), waitTime, { waitTime = it }, Modifier.weight(1f))
                                     NumberField(stringResource(Res.string.close_duration), closeTime, { closeTime = it }, Modifier.weight(1f))
                                 }
-                                MiuixTextButton(
-                                    text = stringResource(Res.string.nfc_write_title),
-                                    onClick = onNfcWriteRequested,
-                                    modifier = Modifier.fillMaxWidth(),
-                                    colors = ButtonDefaults.textButtonColors(),
-                                )
+                                if (showNfcAction) {
+                                    MiuixTextButton(
+                                        text = stringResource(Res.string.nfc_write_title),
+                                        onClick = onNfcWriteRequested,
+                                        modifier = Modifier.fillMaxWidth(),
+                                        colors = ButtonDefaults.textButtonColors(),
+                                    )
+                                }
                                 MiuixTextButton(
                                     text = stringResource(Res.string.save_settings),
                                     onClick = {

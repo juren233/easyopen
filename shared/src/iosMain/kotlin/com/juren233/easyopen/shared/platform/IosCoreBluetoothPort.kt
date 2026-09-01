@@ -64,6 +64,7 @@ class IosCoreBluetoothPort(
 ) : EasyOpenBlePort {
     private val _state = MutableStateFlow(EasyOpenBleSnapshot())
     override val state: StateFlow<EasyOpenBleSnapshot> = _state.asStateFlow()
+    private var scanRequested = false
 
     private val delegate = IosCoreBluetoothDelegate(
         serviceUuid = serviceUuid,
@@ -83,6 +84,7 @@ class IosCoreBluetoothPort(
         },
         onBluetoothAvailabilityChanged = { available ->
             _state.value = _state.value.copy(bluetoothAvailable = available)
+            if (available) resumeScanAfterBluetoothReady()
         },
         onResponse = { binding, bytes ->
             publishResponse(binding, bytes)
@@ -90,6 +92,7 @@ class IosCoreBluetoothPort(
     )
 
     override fun startScan() {
+        scanRequested = true
         if (!delegate.isPoweredOn()) {
             _state.value = _state.value.copy(
                 operation = EasyOpenBleOperation.ERROR,
@@ -111,10 +114,24 @@ class IosCoreBluetoothPort(
     }
 
     override fun stopScan() {
+        scanRequested = false
         delegate.stopScan()
         if (_state.value.operation == EasyOpenBleOperation.SCANNING) {
             _state.value = _state.value.copy(operation = EasyOpenBleOperation.IDLE)
         }
+    }
+
+    private fun resumeScanAfterBluetoothReady() {
+        if (!scanRequested || _state.value.operation != EasyOpenBleOperation.ERROR) return
+        delegate.startScan()
+        _state.value = _state.value.copy(
+            operation = EasyOpenBleOperation.SCANNING,
+            connectionStatus = EasyOpenConnectionStatus.NOT_FOUND,
+            activeBinding = null,
+            rssi = null,
+            discoveredDevices = emptyList(),
+            message = null,
+        )
     }
 
     override fun connect(binding: DeviceBinding, profile: CoreDeviceProfile) {
@@ -242,6 +259,7 @@ private class IosCoreBluetoothDelegate(
     private val readyIdentifiers = mutableSetOf<String>()
     private val awaitingResponses = mutableMapOf<String, AwaitingResponse>()
     private val commandAttempts = mutableMapOf<String, Int>()
+    private var scanRequested = false
     private var commandToken = 0L
 
     private val scanService: CBUUID
@@ -256,6 +274,7 @@ private class IosCoreBluetoothDelegate(
     fun isPoweredOn(): Boolean = centralManager.state == CBManagerStatePoweredOn
 
     fun startScan() {
+        scanRequested = true
         if (!isPoweredOn()) return
         centralManager.scanForPeripheralsWithServices(
             serviceUUIDs = listOf(scanService),
@@ -264,6 +283,7 @@ private class IosCoreBluetoothDelegate(
     }
 
     fun stopScan() {
+        scanRequested = false
         centralManager.stopScan()
     }
 
@@ -338,6 +358,11 @@ private class IosCoreBluetoothDelegate(
         onBluetoothAvailabilityChanged?.invoke(available)
         if (!available) {
             central.stopScan()
+        } else if (scanRequested) {
+            central.scanForPeripheralsWithServices(
+                serviceUUIDs = listOf(scanService),
+                options = null,
+            )
         }
     }
 

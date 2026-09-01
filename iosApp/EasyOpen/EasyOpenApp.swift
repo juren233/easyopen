@@ -15,6 +15,8 @@ struct EasyOpenIOSApp: App {
     var body: some Scene {
         WindowGroup {
             ComposeRootViewController()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color(uiColor: .systemBackground))
                 .ignoresSafeArea()
         }
     }

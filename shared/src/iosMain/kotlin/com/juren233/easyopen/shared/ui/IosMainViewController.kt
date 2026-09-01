@@ -2,17 +2,20 @@ package com.juren233.easyopen.shared.ui
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.window.ComposeUIViewController
 import com.juren233.easyopen.data.AppSettings
 import com.juren233.easyopen.shared.model.CoreDeviceProfile
 import com.juren233.easyopen.shared.model.DeviceBinding
+import com.juren233.easyopen.shared.navigation.EasyOpenNavigator
+import com.juren233.easyopen.shared.navigation.EasyOpenRoute
 import com.juren233.easyopen.shared.platform.IosCoreBluetoothPort
 import com.juren233.easyopen.shared.state.isUsable
 import com.juren233.easyopen.shared.state.activeSavedDevice
@@ -24,6 +27,8 @@ import com.juren233.easyopen.shared.state.HomePageSnapshot
 import com.juren233.easyopen.shared.state.EasyOpenSavedDevice
 import com.juren233.easyopen.shared.state.displayIdentifier
 import platform.Foundation.NSUserDefaults
+import platform.Foundation.NSURL
+import platform.UIKit.UIApplication
 import platform.UIKit.UIViewController
 
 /**
@@ -75,22 +80,29 @@ private fun IosRootContentBody(
     var activeIdentifier by remember {
         mutableStateOf(IosDeviceStore.activeIdentifier(defaults, savedDevices))
     }
-    var showPairing by rememberSaveable { mutableStateOf(savedDevices.isEmpty()) }
-    var showSettings by rememberSaveable { mutableStateOf(false) }
+    val initialRoute = if (savedDevices.isEmpty()) EasyOpenRoute.AddDevice else EasyOpenRoute.Home
+    val backStack = remember { mutableStateListOf<androidx.navigation3.runtime.NavKey>(initialRoute) }
+    val navigator = remember { EasyOpenNavigator(backStack) }
+    val currentRoute = backStack.lastOrNull() ?: EasyOpenRoute.Home
     val activeDevice = activeSavedDevice(savedDevices, activeIdentifier)
     val effectiveBinding = activeDevice?.binding ?: DeviceBinding.IosPeripheral("")
     val effectiveProfile = activeDevice?.profile ?: CoreDeviceProfile()
 
-    DisposableEffect(showPairing, showSettings) {
-        if (showPairing && !showSettings) blePort.startScan() else blePort.stopScan()
+    DisposableEffect(currentRoute) {
+        if (currentRoute != EasyOpenRoute.AddDevice) blePort.stopScan()
         onDispose { blePort.stopScan() }
+    }
+    LaunchedEffect(currentRoute, activeIdentifier, bleSnapshot.bluetoothAvailable) {
+        if (currentRoute == EasyOpenRoute.Home && effectiveBinding.isUsable()) {
+            blePort.connect(effectiveBinding, effectiveProfile)
+        }
     }
 
     when {
-        showSettings -> {
+        currentRoute == EasyOpenRoute.Settings -> {
             SettingsPageContent(
                 settings = appSettings,
-                onBack = { showSettings = false },
+                onBack = navigator::pop,
                 onThemeModeChange = { onSettingsChange(appSettings.copy(themeMode = it)) },
                 onMonetChange = { onSettingsChange(appSettings.copy(monetEnabled = it)) },
                 onAutoUnlockOnAppOpenChange = {
@@ -110,25 +122,26 @@ private fun IosRootContentBody(
                 // settings implementation drifting from Android.
                 onBackupRequested = {},
                 onRestoreRequested = {},
+                showBackupActions = false,
             )
         }
 
-        showPairing -> {
+        currentRoute == EasyOpenRoute.AddDevice -> {
             PairingPageContent(
                 existingDeviceCount = savedDevices.size,
                 pairedDevices = savedDevices,
                 onSelectPairedDevice = { selected ->
                     activeIdentifier = selected.binding.displayIdentifier()
                     IosDeviceStore.save(defaults, savedDevices, activeIdentifier)
-                    showPairing = false
+                    navigator.replace(EasyOpenRoute.Home)
                 },
                 snapshot = bleSnapshot,
                 bluetoothEnabled = bleSnapshot.bluetoothAvailable,
-                onBack = { if (savedDevices.isNotEmpty()) showPairing = false },
+                onBack = if (backStack.size > 1) navigator::pop else null,
                 onOpenBluetoothSettings = {
-                    // CoreBluetooth requests Bluetooth authorization when the
-                    // central manager is first used; iOS has no Android-style
-                    // Bluetooth settings intent to launch here.
+                    UIApplication.sharedApplication.openURL(
+                        NSURL.URLWithString("app-settings:")!!,
+                    )
                 },
                 onStartScan = blePort::startScan,
                 onStopScan = blePort::stopScan,
@@ -146,7 +159,7 @@ private fun IosRootContentBody(
                     savedDevices = upsertSavedDevice(savedDevices, nextDevice)
                     activeIdentifier = iosBinding.identifier
                     IosDeviceStore.save(defaults, savedDevices, activeIdentifier)
-                    showPairing = false
+                    navigator.replace(EasyOpenRoute.Home)
                 },
             )
         }
@@ -167,10 +180,10 @@ private fun IosRootContentBody(
                     canUnlock = effectiveBinding.isUsable() &&
                         bleSnapshot.canUnlock(effectiveBinding, effectiveProfile),
                 ),
-                onOpenScanner = { showPairing = true },
-                onOpenSettings = { showSettings = true },
+                onOpenScanner = { navigator.navigate(EasyOpenRoute.AddDevice) },
+                onOpenSettings = { navigator.navigate(EasyOpenRoute.Settings) },
                 onShareRequested = { /* iOS QR export is the next platform adapter. */ },
-                onSwitchOpener = { showPairing = true },
+                onSwitchOpener = { navigator.navigate(EasyOpenRoute.AddDevice) },
                 onUnlock = {
                     if (effectiveBinding.isUsable()) {
                         blePort.unlock(effectiveBinding, effectiveProfile)
@@ -189,6 +202,9 @@ private fun IosRootContentBody(
                 },
                 onNfcWriteRequested = { /* Core NFC is intentionally separate. */ },
                 onUpdateRequested = { /* Release/update presentation is next. */ },
+                showScannerAction = false,
+                showShareAction = false,
+                showNfcAction = false,
             )
         }
     }
