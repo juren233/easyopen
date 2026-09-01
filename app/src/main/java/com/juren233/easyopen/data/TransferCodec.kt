@@ -7,6 +7,7 @@ import java.io.DataOutputStream
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 import java.security.SecureRandom
+import com.juren233.easyopen.shared.transfer.EasyOpenTransferProfile
 import java.util.Base64
 import javax.crypto.Cipher
 import javax.crypto.spec.GCMParameterSpec
@@ -36,6 +37,7 @@ object TransferCodec {
     private val json = Json {
         ignoreUnknownKeys = true
         encodeDefaults = true
+        explicitNulls = false
         prettyPrint = false
     }
     private val key: SecretKeySpec by lazy {
@@ -101,14 +103,15 @@ object TransferCodec {
         return json.encodeToString(
             BackupEnvelope(
                 version = BACKUP_VERSION,
-                activeAddress = DeviceStore.normalizeAddress(activeAddress),
+                activeAddress = null,
+                activeAndroidMac = DeviceStore.normalizeAddress(activeAddress),
                 themeMode = themeMode.coerceIn(0, 2),
                 monetEnabled = monetEnabled,
                 autoUnlockOnAppOpen = autoUnlockOnAppOpen,
                 autoConnectEnabled = autoConnectEnabled,
                 autoConnectRange = AutoConnectSettings.normalizeRange(autoConnectRange),
                 customAutoConnectRssi = AutoConnectSettings.normalizeRssiThreshold(customAutoConnectRssi),
-                devices = devices.map(::ProfileTransfer),
+                devices = devices.map { it.toTransferProfile() },
             ),
         )
     }
@@ -120,7 +123,9 @@ object TransferCodec {
         require(devices.isNotEmpty())
         BackupSnapshot(
             devices = devices,
-            activeAddress = DeviceStore.normalizeAddress(envelope.activeAddress)
+            activeAddress = DeviceStore.normalizeAddress(
+                (envelope.activeAndroidMac ?: envelope.activeAddress).orEmpty(),
+            )
                 .takeIf { address -> devices.any { it.address.equals(address, ignoreCase = true) } }
                 ?: devices.first().address,
             themeMode = envelope.themeMode.coerceIn(0, 2),
@@ -226,13 +231,27 @@ object TransferCodec {
                 }
             }
             require(input.available() == 0)
-            decodeProfiles(profiles.map(::ProfileTransfer)).takeIf { it.isNotEmpty() }
+            decodeProfiles(profiles.map { it.toTransferProfile() }).takeIf { it.isNotEmpty() }
         }
     }.getOrNull()
 
-    private fun decodeProfiles(profiles: List<ProfileTransfer>): List<DeviceProfile> {
+    private fun DeviceProfile.toTransferProfile(): EasyOpenTransferProfile =
+        EasyOpenTransferProfile.fromCoreProfile(
+            profile = com.juren233.easyopen.shared.model.CoreDeviceProfile(
+                name = name,
+                password = password,
+                attribute = attribute,
+                openTimeMs = openTimeMs,
+                waitTimeMs = waitTimeMs,
+                closeTimeMs = closeTimeMs,
+                batteryLevel = batteryLevel,
+            ),
+            androidMac = DeviceStore.normalizeAddress(address),
+        )
+
+    private fun decodeProfiles(profiles: List<EasyOpenTransferProfile>): List<DeviceProfile> {
         return profiles.mapNotNull { item ->
-            val address = DeviceStore.normalizeAddress(item.address)
+            val address = DeviceStore.normalizeAddress(item.resolvedAndroidMac().orEmpty())
             val password = item.password
             if (!isValidAddress(address) || password.length != 6 || password.any { !it.isDigit() }) return@mapNotNull null
             DeviceProfile(
@@ -255,42 +274,20 @@ object TransferCodec {
     @Serializable
     private data class ShareEnvelope(
         val version: Int,
-        val devices: List<ProfileTransfer>,
+        val devices: List<EasyOpenTransferProfile>,
     )
 
     @Serializable
     private data class BackupEnvelope(
         val version: Int,
-        val activeAddress: String,
+        val activeAddress: String? = null,
+        val activeAndroidMac: String? = null,
         val themeMode: Int,
         val monetEnabled: Boolean,
         val autoUnlockOnAppOpen: Boolean = false,
         val autoConnectEnabled: Boolean = true,
         val autoConnectRange: Int = AutoConnectSettings.DEFAULT_RANGE,
         val customAutoConnectRssi: Int = AutoConnectSettings.DEFAULT_RSSI_THRESHOLD,
-        val devices: List<ProfileTransfer>,
+        val devices: List<EasyOpenTransferProfile>,
     )
-
-    @Serializable
-    private data class ProfileTransfer(
-        val name: String,
-        val address: String,
-        val password: String,
-        val attribute: Int,
-        val openTimeMs: Int,
-        val waitTimeMs: Int,
-        val closeTimeMs: Int,
-        val batteryLevel: Int? = null,
-    ) {
-        constructor(profile: DeviceProfile) : this(
-            name = profile.name,
-            address = profile.address,
-            password = profile.password,
-            attribute = profile.attribute,
-            openTimeMs = profile.openTimeMs,
-            waitTimeMs = profile.waitTimeMs,
-            closeTimeMs = profile.closeTimeMs,
-            batteryLevel = profile.batteryLevel,
-        )
-    }
 }

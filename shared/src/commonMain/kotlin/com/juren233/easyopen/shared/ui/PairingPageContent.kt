@@ -34,6 +34,7 @@ import com.juren233.easyopen.shared.model.CoreDeviceProfile
 import com.juren233.easyopen.shared.model.DeviceBinding
 import com.juren233.easyopen.shared.state.EasyOpenBleDevice
 import com.juren233.easyopen.shared.state.EasyOpenBleOperation
+import com.juren233.easyopen.shared.state.EasyOpenSavedDevice
 import com.juren233.easyopen.shared.state.EasyOpenBleSnapshot
 import com.juren233.easyopen.shared.state.displayIdentifier
 import easyopen.shared.generated.resources.Res
@@ -61,6 +62,8 @@ import easyopen.shared.generated.resources.search_again
 import easyopen.shared.generated.resources.scan_import_title
 import easyopen.shared.generated.resources.search_nearby_openers
 import easyopen.shared.generated.resources.search_results
+import easyopen.shared.generated.resources.saved_openers
+import easyopen.shared.generated.resources.saved_opener_summary
 import easyopen.shared.generated.resources.searching
 import easyopen.shared.generated.resources.start_search
 import easyopen.shared.generated.resources.verifying
@@ -103,6 +106,8 @@ fun PairingPageContent(
     onStopScan: () -> Unit,
     onPairRequested: (DeviceBinding, CoreDeviceProfile) -> Unit,
     onPaired: (DeviceBinding, CoreDeviceProfile) -> Unit,
+    pairedDevices: List<EasyOpenSavedDevice> = emptyList(),
+    onSelectPairedDevice: (EasyOpenSavedDevice) -> Unit = {},
 ) {
     val listState = rememberLazyListState()
     val scrollBehavior = MiuixScrollBehavior()
@@ -241,6 +246,8 @@ fun PairingPageContent(
                     errorMessage = errorMessage,
                     onOpenBluetoothSettings = onOpenBluetoothSettings,
                     onStartScan = onStartScan,
+                    pairedDevices = pairedDevices,
+                    onSelectPairedDevice = onSelectPairedDevice,
                     onSelectDevice = { device ->
                         selectedDevice = device
                         password = ""
@@ -344,6 +351,8 @@ private fun PairingDiscoveryContent(
     errorMessage: String?,
     onOpenBluetoothSettings: () -> Unit,
     onStartScan: () -> Unit,
+    pairedDevices: List<EasyOpenSavedDevice>,
+    onSelectPairedDevice: (EasyOpenSavedDevice) -> Unit,
     onSelectDevice: (EasyOpenBleDevice) -> Unit,
 ) {
     LazyColumn(
@@ -354,6 +363,31 @@ private fun PairingDiscoveryContent(
             bottom = innerPadding.calculateBottomPadding() + 24.dp,
         ),
     ) {
+        if (pairedDevices.isNotEmpty()) {
+            item { SmallTitle(text = stringResource(Res.string.saved_openers)) }
+            item {
+                Card(
+                    modifier = Modifier
+                        .padding(horizontal = 12.dp)
+                        .padding(bottom = 12.dp)
+                        .fillMaxWidth(),
+                ) {
+                    Column {
+                        pairedDevices.forEach { savedDevice ->
+                            ArrowPreference(
+                                title = savedDevice.profile.name,
+                                summary = stringResource(
+                                    Res.string.saved_opener_summary,
+                                    savedDevice.binding.displayIdentifier(),
+                                ),
+                                enabled = !pairingInProgress,
+                                onClick = { onSelectPairedDevice(savedDevice) },
+                            )
+                        }
+                    }
+                }
+            }
+        }
         item {
             SmallTitle(
                 text = stringResource(

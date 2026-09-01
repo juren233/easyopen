@@ -10,12 +10,17 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.window.ComposeUIViewController
 import com.juren233.easyopen.data.AppSettings
-import com.juren233.easyopen.data.AutoConnectSettings
 import com.juren233.easyopen.shared.model.CoreDeviceProfile
 import com.juren233.easyopen.shared.model.DeviceBinding
 import com.juren233.easyopen.shared.platform.IosCoreBluetoothPort
+import com.juren233.easyopen.shared.state.isUsable
+import com.juren233.easyopen.shared.state.activeSavedDevice
+import com.juren233.easyopen.shared.state.upsertSavedDevice
+import com.juren233.easyopen.shared.storage.IosDeviceStore
+import com.juren233.easyopen.shared.storage.IosSettingsStore
 import com.juren233.easyopen.shared.state.HomeDeviceSnapshot
 import com.juren233.easyopen.shared.state.HomePageSnapshot
+import com.juren233.easyopen.shared.state.EasyOpenSavedDevice
 import com.juren233.easyopen.shared.state.displayIdentifier
 import platform.Foundation.NSUserDefaults
 import platform.UIKit.UIViewController
@@ -28,7 +33,7 @@ fun MainViewController(): UIViewController = ComposeUIViewController {
 @Composable
 private fun IosRootContent() {
     val defaults = remember { NSUserDefaults.standardUserDefaults }
-    var appSettings by remember { mutableStateOf(loadIosSettings(defaults)) }
+    var appSettings by remember { mutableStateOf(IosSettingsStore.load(defaults)) }
 
     EasyOpenTheme(
         themeMode = appSettings.themeMode,
@@ -39,7 +44,7 @@ private fun IosRootContent() {
             appSettings = appSettings,
             onSettingsChange = {
                 appSettings = it
-                saveIosSettings(defaults, it)
+                IosSettingsStore.save(defaults, it)
             },
         )
     }
@@ -53,10 +58,15 @@ private fun IosRootContentBody(
 ) {
     val blePort = remember { IosCoreBluetoothPort() }
     val bleSnapshot by blePort.state.collectAsState()
-    var profile by remember { mutableStateOf(loadIosProfile(defaults)) }
-    var savedBinding by remember { mutableStateOf(loadIosBinding(defaults)) }
-    var showPairing by rememberSaveable { mutableStateOf(savedBinding == null) }
+    var savedDevices by remember { mutableStateOf(IosDeviceStore.load(defaults)) }
+    var activeIdentifier by remember {
+        mutableStateOf(IosDeviceStore.activeIdentifier(defaults, savedDevices))
+    }
+    var showPairing by rememberSaveable { mutableStateOf(savedDevices.isEmpty()) }
     var showSettings by rememberSaveable { mutableStateOf(false) }
+    val activeDevice = activeSavedDevice(savedDevices, activeIdentifier)
+    val effectiveBinding = activeDevice?.binding ?: DeviceBinding.IosPeripheral("")
+    val effectiveProfile = activeDevice?.profile ?: CoreDeviceProfile()
 
     DisposableEffect(showPairing, showSettings) {
         if (showPairing && !showSettings) blePort.startScan() else blePort.stopScan()
@@ -92,10 +102,16 @@ private fun IosRootContentBody(
 
         showPairing -> {
             PairingPageContent(
-                existingDeviceCount = if (savedBinding == null) 0 else 1,
+                existingDeviceCount = savedDevices.size,
+                pairedDevices = savedDevices,
+                onSelectPairedDevice = { selected ->
+                    activeIdentifier = selected.binding.displayIdentifier()
+                    IosDeviceStore.save(defaults, savedDevices, activeIdentifier)
+                    showPairing = false
+                },
                 snapshot = bleSnapshot,
                 bluetoothEnabled = bleSnapshot.bluetoothAvailable,
-                onBack = { if (savedBinding != null) showPairing = false },
+                onBack = { if (savedDevices.isNotEmpty()) showPairing = false },
                 onOpenBluetoothSettings = {
                     // CoreBluetooth requests Bluetooth authorization when the
                     // central manager is first used; iOS has no Android-style
@@ -110,32 +126,32 @@ private fun IosRootContentBody(
                 onPaired = { binding, pairedProfile ->
                     val iosBinding = binding as? DeviceBinding.IosPeripheral
                         ?: return@PairingPageContent
-                    savedBinding = iosBinding
-                    profile = pairedProfile.normalized()
-                    saveIosDevice(defaults, iosBinding, profile)
+                    val nextDevice = EasyOpenSavedDevice(
+                        binding = iosBinding,
+                        profile = pairedProfile.normalized(),
+                    )
+                    savedDevices = upsertSavedDevice(savedDevices, nextDevice)
+                    activeIdentifier = iosBinding.identifier
+                    IosDeviceStore.save(defaults, savedDevices, activeIdentifier)
                     showPairing = false
                 },
             )
         }
 
         else -> {
-            val binding = savedBinding ?: (bleSnapshot.activeBinding as? DeviceBinding.IosPeripheral)
-            val effectiveBinding = binding ?: DeviceBinding.IosPeripheral("")
-            val effectiveProfile = profile
             HomePageContent(
                 snapshot = HomePageSnapshot(
                     activeDevice = HomeDeviceSnapshot(
-                        id = effectiveBinding.identifier,
-                        identifierLabel = effectiveBinding.identifier
+                        id = effectiveBinding.displayIdentifier(),
+                        identifierLabel = effectiveBinding.displayIdentifier()
                             .takeIf(String::isNotBlank)
-                            ?.let { effectiveBinding.displayIdentifier() }
                             ?: "未配对开门器",
                         profile = effectiveProfile,
                     ),
                     connectionStatus = bleSnapshot.connectionStatus,
                     batteryLevel = bleSnapshot.batteryLevel(effectiveBinding, effectiveProfile.batteryLevel),
                     busy = bleSnapshot.busy,
-                    canUnlock = effectiveBinding.identifier.isNotBlank() &&
+                    canUnlock = effectiveBinding.isUsable() &&
                         bleSnapshot.canUnlock(effectiveBinding, effectiveProfile),
                 ),
                 onOpenScanner = { showPairing = true },
@@ -143,13 +159,20 @@ private fun IosRootContentBody(
                 onShareRequested = { /* iOS QR export is the next platform adapter. */ },
                 onSwitchOpener = { showPairing = true },
                 onUnlock = {
-                    if (effectiveBinding.identifier.isNotBlank()) {
+                    if (effectiveBinding.isUsable()) {
                         blePort.unlock(effectiveBinding, effectiveProfile)
                     }
                 },
-                onProfileChange = {
-                    profile = it.normalized()
-                    savedBinding?.let { binding -> saveIosDevice(defaults, binding, profile) }
+                onProfileChange = { updatedProfile ->
+                    val normalized = updatedProfile.normalized()
+                    savedDevices = savedDevices.map { saved ->
+                        if (saved.binding.displayIdentifier().equals(activeIdentifier, ignoreCase = true)) {
+                            saved.copy(profile = normalized)
+                        } else {
+                            saved
+                        }
+                    }
+                    IosDeviceStore.save(defaults, savedDevices, activeIdentifier)
                 },
                 onNfcWriteRequested = { /* Core NFC is intentionally separate. */ },
                 onUpdateRequested = { /* Release/update presentation is next. */ },
@@ -157,63 +180,3 @@ private fun IosRootContentBody(
         }
     }
 }
-
-private const val IOS_BINDING_KEY = "easyopen.ios.binding"
-private const val IOS_PROFILE_PREFIX = "easyopen.ios.profile."
-private const val IOS_SETTINGS_PREFIX = "easyopen.ios.settings."
-
-private fun loadIosBinding(defaults: NSUserDefaults): DeviceBinding.IosPeripheral? =
-    defaults.stringForKey(IOS_BINDING_KEY)
-        ?.trim()
-        ?.takeIf(String::isNotBlank)
-        ?.let { identifier -> DeviceBinding.IosPeripheral(identifier) }
-
-private fun loadIosProfile(defaults: NSUserDefaults): CoreDeviceProfile = CoreDeviceProfile(
-    name = defaults.stringForKey(IOS_PROFILE_PREFIX + "name") ?: "我的开门器",
-    password = defaults.stringForKey(IOS_PROFILE_PREFIX + "password") ?: "",
-    attribute = defaults.integerForKey(IOS_PROFILE_PREFIX + "attribute").toInt(),
-    openTimeMs = defaults.integerForKey(IOS_PROFILE_PREFIX + "openTimeMs").toInt().takeIf { it > 0 } ?: 650,
-    waitTimeMs = defaults.integerForKey(IOS_PROFILE_PREFIX + "waitTimeMs").toInt().takeIf { it > 0 } ?: 2_000,
-    closeTimeMs = defaults.integerForKey(IOS_PROFILE_PREFIX + "closeTimeMs").toInt().takeIf { it > 0 } ?: 600,
-).normalized()
-
-private fun saveIosDevice(
-    defaults: NSUserDefaults,
-    binding: DeviceBinding.IosPeripheral,
-    profile: CoreDeviceProfile,
-) {
-    val normalized = profile.normalized()
-    defaults.setObject(binding.identifier, forKey = IOS_BINDING_KEY)
-    defaults.setObject(normalized.name, forKey = IOS_PROFILE_PREFIX + "name")
-    defaults.setObject(normalized.password, forKey = IOS_PROFILE_PREFIX + "password")
-    defaults.setInteger(normalized.attribute.toLong(), forKey = IOS_PROFILE_PREFIX + "attribute")
-    defaults.setInteger(normalized.openTimeMs.toLong(), forKey = IOS_PROFILE_PREFIX + "openTimeMs")
-    defaults.setInteger(normalized.waitTimeMs.toLong(), forKey = IOS_PROFILE_PREFIX + "waitTimeMs")
-    defaults.setInteger(normalized.closeTimeMs.toLong(), forKey = IOS_PROFILE_PREFIX + "closeTimeMs")
-}
-
-private fun loadIosSettings(defaults: NSUserDefaults): AppSettings = AppSettings(
-    themeMode = defaults.integerForKey(IOS_SETTINGS_PREFIX + "themeMode").toInt().coerceIn(0, 2),
-    monetEnabled = defaults.boolForKey(IOS_SETTINGS_PREFIX + "monetEnabled"),
-    autoUnlockOnAppOpen = defaults.boolForKey(IOS_SETTINGS_PREFIX + "autoUnlockOnAppOpen"),
-    autoConnectEnabled = defaults.objectForKey(IOS_SETTINGS_PREFIX + "autoConnectEnabled")
-        ?.let { defaults.boolForKey(IOS_SETTINGS_PREFIX + "autoConnectEnabled") }
-        ?: true,
-    autoConnectRange = defaults.integerForKey(IOS_SETTINGS_PREFIX + "autoConnectRange")
-        .toIntOrDefault(defaults, IOS_SETTINGS_PREFIX + "autoConnectRange", AutoConnectSettings.DEFAULT_RANGE),
-    customAutoConnectRssi = defaults.integerForKey(IOS_SETTINGS_PREFIX + "customAutoConnectRssi")
-        .toIntOrDefault(defaults, IOS_SETTINGS_PREFIX + "customAutoConnectRssi", AutoConnectSettings.DEFAULT_RSSI_THRESHOLD),
-)
-
-private fun saveIosSettings(defaults: NSUserDefaults, settings: AppSettings) {
-    defaults.setInteger(settings.themeMode.coerceIn(0, 2).toLong(), forKey = IOS_SETTINGS_PREFIX + "themeMode")
-    defaults.setBool(settings.monetEnabled, forKey = IOS_SETTINGS_PREFIX + "monetEnabled")
-    defaults.setBool(settings.autoUnlockOnAppOpen, forKey = IOS_SETTINGS_PREFIX + "autoUnlockOnAppOpen")
-    defaults.setBool(settings.autoConnectEnabled, forKey = IOS_SETTINGS_PREFIX + "autoConnectEnabled")
-    defaults.setInteger(settings.autoConnectRange.toLong(), forKey = IOS_SETTINGS_PREFIX + "autoConnectRange")
-    defaults.setInteger(settings.customAutoConnectRssi.toLong(), forKey = IOS_SETTINGS_PREFIX + "customAutoConnectRssi")
-}
-
-
-private fun Long.toIntOrDefault(defaults: NSUserDefaults, key: String, fallback: Int): Int =
-    if (defaults.objectForKey(key) == null) fallback else toInt()

@@ -12,6 +12,8 @@
     <string name="search_again">重新搜索</string>
     <string name="start_search">开始搜索</string>
     <string name="search_results">搜索结果</string>
+    <string name="saved_openers">已保存的开门器</string>
+    <string name="saved_opener_summary">%1$s</string>
     <string name="scan_import_title">扫码添加开门器</string>
     <string name="no_opener_found">暂未找到开门器</string>
     <string name="no_opener_found_summary">请检查开门器是否通电后再试</string>

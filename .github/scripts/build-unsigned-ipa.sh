@@ -23,14 +23,17 @@ inspection_path="$workspace/$inspection_name"
 derived_data_path="${RUNNER_TEMP:-$workspace/.tmp}/easyopen-derived-data"
 
 mkdir -p "$archive_root" "$payload_dir"
-
 printf '%s\n' "Android display version: $full_name"
 printf '%s\n' "iOS CFBundleShortVersionString: $ios_version"
 printf '%s\n' "iOS CFBundleVersion: $version_code"
 
+framework_started=$SECONDS
 ./gradlew --no-daemon --max-workers=2 --build-cache -PallowUnsigned=true "$framework_task"
+framework_seconds=$((SECONDS - framework_started))
 test -d "$framework_path"
+printf '%s\n' "Timing Kotlin/Native framework: ${framework_seconds}s"
 
+archive_started=$SECONDS
 xcodebuild \
   -project "$project_path" \
   -scheme "$scheme" \
@@ -45,6 +48,9 @@ xcodebuild \
   CODE_SIGN_IDENTITY='' \
   MARKETING_VERSION="$ios_version" \
   CURRENT_PROJECT_VERSION="$version_code"
+archive_seconds=$((SECONDS - archive_started))
+package_started=$SECONDS
+printf '%s\n' "Timing Xcode archive: ${archive_seconds}s"
 
 app_path="$(find "$archive_path/Products/Applications" -maxdepth 1 -type d -name '*.app' -print -quit)"
 test -n "$app_path"
@@ -84,6 +90,12 @@ cp -R "$app_path" "$payload_dir/"
 test -s "$output_path"
 /usr/bin/unzip -tq "$output_path" >/dev/null
 test -s "$inspection_path"
+package_seconds=$((SECONDS - package_started))
+printf 'framework_seconds=%s\n' "$framework_seconds" >> "$inspection_path"
+printf 'archive_seconds=%s\n' "$archive_seconds" >> "$inspection_path"
+printf 'package_seconds=%s\n' "$package_seconds" >> "$inspection_path"
+printf '%s\n' "Timing IPA packaging and inspection: ${package_seconds}s"
+printf '%s\n' "Timing total: ${SECONDS}s"
 
 printf '%s\n' "IPA: $output_path"
 /usr/bin/unzip -l "$output_path" | sed -n '1,24p'

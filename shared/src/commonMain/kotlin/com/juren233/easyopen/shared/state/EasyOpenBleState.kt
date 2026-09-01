@@ -31,6 +31,12 @@ data class EasyOpenBleDevice(
     val rssi: Int,
 )
 
+/** A locally saved opener entry shown by the platform-neutral pairing UI. */
+data class EasyOpenSavedDevice(
+    val binding: DeviceBinding,
+    val profile: CoreDeviceProfile,
+)
+
 /**
  * Immutable BLE state consumed by common UI.
  *

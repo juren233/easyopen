@@ -4,6 +4,7 @@ import com.juren233.easyopen.data.DeviceProfile
 import com.juren233.easyopen.data.TransferCodec
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -40,6 +41,9 @@ class TransferCodecTest {
             autoConnectRange = 3,
             customAutoConnectRssi = -92,
         )
+        assertTrue(backup.contains("\"activeAndroidMac\""))
+        assertTrue(backup.contains("\"androidMac\""))
+        assertFalse(backup.contains("\"address\""))
         val restored = TransferCodec.decodeBackup(backup)
         assertNotNull(restored)
         assertEquals(2, restored?.devices?.size)
@@ -51,4 +55,19 @@ class TransferCodecTest {
         assertEquals(3, restored?.autoConnectRange)
         assertEquals(-92, restored?.customAutoConnectRssi)
     }
+    @Test
+    fun legacyBackupWithAddressFieldStillDecodes() {
+        val legacy = """
+            {"version":1,"activeAddress":"${profile.address}","themeMode":0,"monetEnabled":false,
+            "devices":[{"name":"${profile.name}","address":"${profile.address}","password":"${profile.password}",
+            "attribute":${profile.attribute},"openTimeMs":${profile.openTimeMs},"waitTimeMs":${profile.waitTimeMs},"closeTimeMs":${profile.closeTimeMs},"batteryLevel":${profile.batteryLevel}}]}
+        """.trimIndent().replace("\n", "")
+
+        val restored = TransferCodec.decodeBackup(legacy)
+
+        assertNotNull(restored)
+        assertEquals(profile.address, restored?.activeAddress)
+        assertEquals(profile, restored?.devices?.single())
+    }
+
 }
