@@ -71,6 +71,7 @@ ARCHS=arm64 \
 BUILT_PRODUCTS_DIR="$app_products_dir" \
 UNLOCALIZED_RESOURCES_FOLDER_PATH="$app_bundle_name" \
 ./gradlew --no-daemon --max-workers=2 --build-cache \
+  -PallowUnsigned=true \
   -Pcompose.ios.resources.platform=iphoneos \
   -Pcompose.ios.resources.archs=arm64 \
   :shared:syncComposeResourcesForIos
