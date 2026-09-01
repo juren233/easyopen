@@ -18,6 +18,8 @@ archive_path="$archive_root/EasyOpen-$run_token.xcarchive"
 payload_dir="$payload_root/Payload"
 output_name="${OUTPUT_NAME:-EasyOpen-iOS-v${full_name}-${version_code}.ipa}"
 output_path="$workspace/$output_name"
+inspection_name="${output_name%.ipa}-inspection.txt"
+inspection_path="$workspace/$inspection_name"
 derived_data_path="${RUNNER_TEMP:-$workspace/.tmp}/easyopen-derived-data"
 
 mkdir -p "$archive_root" "$payload_dir"
@@ -53,9 +55,35 @@ actual_version_code="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$app
 test "$actual_ios_version" = "$ios_version"
 test "$actual_version_code" = "$version_code"
 
+app_executable_name="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$app_path/Info.plist")"
+app_executable="$app_path/$app_executable_name"
+test -f "$app_executable"
+app_architectures="$(/usr/bin/lipo -archs "$app_executable")"
+framework_architectures="$(/usr/bin/lipo -archs "$framework_path/EasyOpenShared")"
+[[ " $app_architectures " == *" arm64 "* ]]
+[[ " $framework_architectures " == *" arm64 "* ]]
+test ! -d "$app_path/_CodeSignature"
+if /usr/bin/codesign --verify --deep --strict "$app_path" >/dev/null 2>&1; then
+  printf 'Expected an unsigned app, but codesign verification succeeded: %s\n' "$app_path" >&2
+  exit 1
+fi
+
+{
+  printf 'android_display_version=%s\n' "$full_name"
+  printf 'ios_bundle_short_version=%s\n' "$actual_ios_version"
+  printf 'ios_bundle_version=%s\n' "$actual_version_code"
+  printf 'app_architectures=%s\n' "$app_architectures"
+  printf 'framework_architectures=%s\n' "$framework_architectures"
+  printf 'unsigned=true\n'
+  printf '\nlinked_libraries:\n'
+  /usr/bin/otool -L "$app_executable"
+} > "$inspection_path"
+
 cp -R "$app_path" "$payload_dir/"
 (cd "$payload_root" && /usr/bin/zip -qry "$output_path" Payload)
 test -s "$output_path"
+/usr/bin/unzip -tq "$output_path" >/dev/null
+test -s "$inspection_path"
 
 printf '%s\n' "IPA: $output_path"
 /usr/bin/unzip -l "$output_path" | sed -n '1,24p'
@@ -63,4 +91,5 @@ printf '%s\n' "IPA: $output_path"
 if [[ -n "${GITHUB_OUTPUT:-}" ]]; then
   printf 'ipa_path=%s\n' "$output_path" >> "$GITHUB_OUTPUT"
   printf 'ipa_name=%s\n' "$output_name" >> "$GITHUB_OUTPUT"
+  printf 'inspection_name=%s\n' "$inspection_name" >> "$GITHUB_OUTPUT"
 fi

@@ -2,18 +2,6 @@ package com.juren233.easyopen.data
 
 import android.content.SharedPreferences
 
-data class AppSettings(
-    val themeMode: Int = 0,
-    val monetEnabled: Boolean = false,
-    val autoUnlockOnAppOpen: Boolean = false,
-    val autoConnectEnabled: Boolean = true,
-    val autoConnectRange: Int = AutoConnectSettings.DEFAULT_RANGE,
-    val customAutoConnectRssi: Int = AutoConnectSettings.DEFAULT_RSSI_THRESHOLD,
-) {
-    val autoConnectRssiThreshold: Int
-        get() = AutoConnectSettings.thresholdFor(autoConnectRange, customAutoConnectRssi)
-}
-
 object AppSettingsStore {
     private const val KEY_THEME_MODE = "themeMode"
     private const val KEY_MONET_ENABLED = "monetEnabled"

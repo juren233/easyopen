@@ -1,30 +1,24 @@
-package com.juren233.easyopen.ui
+package com.juren233.easyopen.shared.ui
 
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
-import com.juren233.easyopen.R
 import top.yukonga.miuix.kmp.basic.TextField
 
+/**
+ * Numeric text field shared by Android and iOS pages.
+ *
+ * Input filtering belongs here because it is UI behavior, not an Android
+ * resource or platform capability. Labels remain supplied by the host until
+ * the shared text layer is fully migrated.
+ */
 @Composable
-internal fun formatBatteryLevel(level: Int?): String = stringResource(
-    when (level) {
-        1 -> R.string.battery_low
-        2 -> R.string.battery_25
-        3 -> R.string.battery_50
-        4 -> R.string.battery_75
-        5 -> R.string.battery_100
-        else -> R.string.battery_unknown
-    },
-)
-@Composable
-internal fun NumberField(
+fun NumberField(
     label: String,
     value: String,
     onValueChange: (String) -> Unit,
-    modifier: Modifier,
+    modifier: Modifier = Modifier,
 ) {
     TextField(
         value = value,

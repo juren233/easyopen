@@ -2,13 +2,7 @@ package com.juren233.easyopen.data
 
 import kotlin.math.abs
 
-/**
- * Persisted choices for automatic opener discovery and connection.
- *
- * RSSI is represented with the normal BLE signed dBm value in storage and in
- * the controller. The UI asks for the magnitude only, so users never need to
- * type the leading minus sign.
- */
+/** Cross-platform automatic connection preferences and RSSI normalization. */
 object AutoConnectSettings {
     const val RANGE_NEAR = 0
     const val RANGE_MODERATE = 1

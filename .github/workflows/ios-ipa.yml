@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   build:
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 45
 
     steps:
@@ -54,11 +54,7 @@ jobs:
 
       - name: 检查 Xcode Check Xcode
         if: steps.gate.outputs.skip != 'true'
-        run: |
-          set -euo pipefail
-          xcodebuild -version
-          xcrun --sdk iphoneos --show-sdk-version
-          swift --version
+        run: bash .github/scripts/check-ios-toolchain.sh
 
       - name: 授权脚本 Grant Permission
         if: steps.gate.outputs.skip != 'true'
@@ -105,6 +101,7 @@ jobs:
           name: EasyOpen-iOS-v${{ steps.gate.outputs.full_name }}-${{ steps.gate.outputs.code }}
           path: |
             ${{ steps.build.outputs.ipa_name }}
+            ${{ steps.build.outputs.inspection_name }}
             EasyOpen-iOS-build-metadata.txt
           if-no-files-found: error
           retention-days: 14

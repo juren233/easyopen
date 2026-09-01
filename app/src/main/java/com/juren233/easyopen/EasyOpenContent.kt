@@ -14,6 +14,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import com.juren233.easyopen.ble.AndroidBlePort
 import com.juren233.easyopen.ble.BleDoorController
 import com.juren233.easyopen.data.AppSettings
 import com.juren233.easyopen.data.DeviceProfile
@@ -51,6 +52,7 @@ internal fun EasyOpenContent(
     val batteryLevels by controller.batteryLevels.collectAsState()
     val nfcState by nfcReaderState.collectAsState()
     val nfcWriteScope = rememberCoroutineScope()
+    val blePort = remember(controller, nfcWriteScope) { AndroidBlePort(controller, nfcWriteScope) }
     var nfcWriteWaiting by remember { mutableStateOf(false) }
     var nfcWriteRequest by remember { mutableStateOf<NfcWriteRequest?>(null) }
     var nfcWriteAwaitingTag by remember { mutableStateOf(false) }
@@ -279,6 +281,7 @@ internal fun EasyOpenContent(
             val appSettingsState = rememberUpdatedState(appSettings)
             EasyOpenNavigation(
                 controller = controller,
+                blePort = blePort,
                 devices = pairedDevices,
                 appSettings = appSettings,
                 appSettingsState = appSettingsState,

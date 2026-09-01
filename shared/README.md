@@ -9,4 +9,12 @@
 - `src/androidMain`：Android BLE、NFC、权限、存储和相机适配。
 - `src/iosMain`：iOS CoreBluetooth、Core NFC、权限、存储和相机适配。
 
-当前只建立迁移骨架，尚未把现有 Android App 接入本模块。接入前先完成 Gradle/Kotlin/Compose Multiplatform 工具链兼容性验证。
+当前已接入首批共用 UI、路由、资源、Home 状态模型和 BLE 平台边界：
+
+- `commonMain/ui/HomePageContent.kt`、`SettingsPageContent.kt` 等只依赖跨平台模型和回调。
+- `commonMain/state` 保存 Home/BLE 快照，不持有 Android `BluetoothDevice`、iOS `CBPeripheral` 或 Context。
+- Android `AndroidBlePort` 将现有 `BleDoorController` 的 StateFlow 转成 shared 快照。
+- `shared/platform/EasyOpenBleUuids.kt` 维护 Android/iOS 共同的 Nordic UART-style UUID 合约。
+- iOS `IosCoreBluetoothPort` 已有扫描、连接、服务/特征发现和通知配置骨架，协议写入和响应处理仍待完成。
+
+尚未把所有 Android 页面、存储、NFC、相机和配对流程迁移到 shared；这些迁移必须逐批编译并保留 Android 回滚路径。

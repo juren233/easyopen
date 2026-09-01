@@ -18,6 +18,7 @@ import android.os.Handler
 import android.os.Looper
 import androidx.core.content.ContextCompat
 import com.juren233.easyopen.BuildConfig
+import com.juren233.easyopen.shared.platform.EasyOpenBleUuids
 import java.util.UUID
 
 internal sealed interface BleGattFailure {
@@ -53,10 +54,10 @@ internal class BleGattSession(
         private const val WRITE_RETRY_DELAY_MS = 200L
         private const val GATT_CONNECTION_TIMEOUT_MS = 8_000L
         private const val RELEASE_WATCHDOG_MS = 1_500L
-        val SERVICE_UUID: UUID = UUID.fromString("6e400001-b5a3-f393-e0a9-e50e24dcca9e")
-        val WRITE_UUID: UUID = UUID.fromString("6e400002-b5a3-f393-e0a9-e50e24dcca9e")
-        val NOTIFY_UUID: UUID = UUID.fromString("6e400003-b5a3-f393-e0a9-e50e24dcca9e")
-        val CCCD_UUID: UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
+        val SERVICE_UUID: UUID = UUID.fromString(EasyOpenBleUuids.SERVICE)
+        val WRITE_UUID: UUID = UUID.fromString(EasyOpenBleUuids.WRITE)
+        val NOTIFY_UUID: UUID = UUID.fromString(EasyOpenBleUuids.NOTIFY)
+        val CCCD_UUID: UUID = UUID.fromString(EasyOpenBleUuids.CCCD)
     }
 
     private val appContext = context.applicationContext

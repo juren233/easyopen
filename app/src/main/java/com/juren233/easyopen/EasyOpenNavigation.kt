@@ -14,6 +14,9 @@ import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import com.juren233.easyopen.ble.BleDoorController
+import com.juren233.easyopen.shared.platform.EasyOpenBlePort
+import com.juren233.easyopen.shared.navigation.EasyOpenNavigator
+import com.juren233.easyopen.shared.navigation.EasyOpenRoute
 import com.juren233.easyopen.data.AppSettings
 import com.juren233.easyopen.data.DeviceProfile
 import com.juren233.easyopen.data.TransferCodec
@@ -25,6 +28,7 @@ import com.juren233.easyopen.ui.SettingsPage
 @Composable
 internal fun EasyOpenNavigation(
     controller: BleDoorController,
+    blePort: EasyOpenBlePort,
     devices: List<DeviceProfile>,
     appSettings: AppSettings,
     appSettingsState: State<AppSettings>,
@@ -71,6 +75,7 @@ internal fun EasyOpenNavigation(
 
     val entryProvider = remember(
         backStack,
+        blePort,
         devices,
         appSettingsState,
         activeProfileState,
@@ -86,7 +91,7 @@ internal fun EasyOpenNavigation(
         entryProvider<NavKey> {
             entry<EasyOpenRoute.Home> {
                 HomePage(
-                    controller = controller,
+                    blePort = blePort,
                     devices = devices,
                     activeProfileState = activeProfileState,
                     activeAddress = activeAddress,

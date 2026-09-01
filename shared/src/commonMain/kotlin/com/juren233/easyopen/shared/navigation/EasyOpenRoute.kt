@@ -1,4 +1,4 @@
-package com.juren233.easyopen
+package com.juren233.easyopen.shared.navigation
 
 import androidx.navigation3.runtime.NavKey
 import kotlinx.serialization.Serializable

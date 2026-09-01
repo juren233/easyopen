@@ -1,6 +1,6 @@
 # EasyOpen iOS App
 
-当前目录包含一个最小的 Xcode 宿主工程，用于把 `shared` 的 Compose Multiplatform UI 生成未签名 IPA。它目前只承载 KMP/Miuix smoke screen，BLE、NFC、权限和完整页面仍按计划迁移。
+当前目录包含一个最小的 Xcode 宿主工程，用于把 `shared` 的 Compose Multiplatform UI 生成未签名 IPA。宿主当前仍显示 KMP/Miuix smoke screen；shared 已有 iOS CoreBluetooth 的扫描、连接、服务/特征发现和通知配置骨架，但 BLE 协议、NFC、权限和完整页面仍按计划迁移。
 
 ## 本地/macOS 构建边界
 
@@ -8,6 +8,7 @@
 - `iosApp/EasyOpen.xcodeproj` 负责生成 iOS App。
 - `.github/scripts/build-unsigned-ipa.sh` 通过 `xcodebuild archive CODE_SIGNING_ALLOWED=NO` 归档，再手动打包 `Payload/*.app` 为未签名 `.ipa`。
 - Linux 可以编译 Kotlin/Native KLIB，但不能替代 macOS/Xcode 的链接、签名和真机验证。
+- 2026-08-31 的 `iOS IPA Validation` run `33417601264` 在 `macos-15` / Xcode 16.4 最终链接阶段失败；当前 workflow 已调整为 `macos-26`，需要推送后重新验证。
 
 ## GitHub Actions
 

@@ -1,4 +1,4 @@
-package com.juren233.easyopen.ui
+package com.juren233.easyopen.shared.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -10,10 +10,18 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
+import easyopen.shared.generated.resources.Res
+import easyopen.shared.generated.resources.close_duration
+import easyopen.shared.generated.resources.complete_pairing
+import easyopen.shared.generated.resources.forward
+import easyopen.shared.generated.resources.hold_duration
+import easyopen.shared.generated.resources.lock_direction
+import easyopen.shared.generated.resources.open_duration
+import easyopen.shared.generated.resources.opener_name_optional
+import easyopen.shared.generated.resources.reverse
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.juren233.easyopen.R
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.Text as MiuixText
@@ -22,7 +30,7 @@ import top.yukonga.miuix.kmp.basic.TextField
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 @Composable
-internal fun PairingSettingsPage(
+fun PairingSettingsPage(
     innerPadding: PaddingValues,
     name: String,
     onNameChange: (String) -> Unit,
@@ -57,12 +65,12 @@ internal fun PairingSettingsPage(
                     TextField(
                         value = name,
                         onValueChange = onNameChange,
-                        label = stringResource(R.string.opener_name_optional),
+                        label = stringResource(Res.string.opener_name_optional),
                         modifier = Modifier.fillMaxWidth(),
                         maxLines = 1,
                     )
                     MiuixText(
-                        text = stringResource(R.string.lock_direction),
+                        text = stringResource(Res.string.lock_direction),
                         fontSize = 14.sp,
                         color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                     )
@@ -71,7 +79,7 @@ internal fun PairingSettingsPage(
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         MiuixTextButton(
-                            text = stringResource(R.string.forward),
+                            text = stringResource(Res.string.forward),
                             onClick = { onAttributeChange(0) },
                             modifier = Modifier.weight(1f),
                             colors = if (attribute == 0) {
@@ -81,7 +89,7 @@ internal fun PairingSettingsPage(
                             },
                         )
                         MiuixTextButton(
-                            text = stringResource(R.string.reverse),
+                            text = stringResource(Res.string.reverse),
                             onClick = { onAttributeChange(1) },
                             modifier = Modifier.weight(1f),
                             colors = if (attribute == 1) {
@@ -95,16 +103,16 @@ internal fun PairingSettingsPage(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                        NumberField(stringResource(R.string.open_duration), openTime, onOpenTimeChange, Modifier.weight(1f))
-                        NumberField(stringResource(R.string.hold_duration), waitTime, onWaitTimeChange, Modifier.weight(1f))
-                        NumberField(stringResource(R.string.close_duration), closeTime, onCloseTimeChange, Modifier.weight(1f))
+                        NumberField(stringResource(Res.string.open_duration), openTime, onOpenTimeChange, Modifier.weight(1f))
+                        NumberField(stringResource(Res.string.hold_duration), waitTime, onWaitTimeChange, Modifier.weight(1f))
+                        NumberField(stringResource(Res.string.close_duration), closeTime, onCloseTimeChange, Modifier.weight(1f))
                     }
                 }
             }
         }
         item {
             MiuixTextButton(
-                text = stringResource(R.string.complete_pairing),
+                text = stringResource(Res.string.complete_pairing),
                 onClick = onComplete,
                 modifier = Modifier
                     .padding(horizontal = 12.dp)

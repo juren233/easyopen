@@ -11,6 +11,8 @@ import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import com.juren233.easyopen.ble.BleDoorController
+import com.juren233.easyopen.shared.navigation.EasyOpenNavigator
+import com.juren233.easyopen.shared.navigation.EasyOpenRoute
 import com.juren233.easyopen.data.DeviceProfile
 import com.juren233.easyopen.data.TransferCodec
 import com.juren233.easyopen.ui.PairingPage
