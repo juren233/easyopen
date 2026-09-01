@@ -1,75 +1,57 @@
 package com.juren233.easyopen.ble
 
-import java.security.MessageDigest
-import javax.crypto.Cipher
-import javax.crypto.spec.SecretKeySpec
+import com.juren233.easyopen.data.DeviceProfile
+import com.juren233.easyopen.shared.model.CoreDeviceProfile
 
-/** Command generator reconstructed from the original com.macronum.bledemo binary. */
+/**
+ * Android compatibility facade for the shared YiLa/Macronum protocol.
+ *
+ * Keep this type while Android callers migrate; packet generation and response
+ * parsing now live in commonMain so iOS and Android cannot drift.
+ */
 object UnlockProtocol {
-    private const val AES_KEY = "Fx4k6AWivOsLE4NI"
-    private const val PASSWORD_PREFIX = "A:PW;P:"
-    private const val OPEN_PREFIX = "A:OPEN;P:"
-    private val HEX_16 = Regex("[0-9a-fA-F]{16}")
-    private val HEX_32 = Regex("[0-9a-fA-F]{32}")
+    fun buildPasswordPacket(
+        password: String,
+        epochSeconds: Long = System.currentTimeMillis() / 1_000L,
+    ): ByteArray = com.juren233.easyopen.shared.protocol.UnlockProtocol.buildPasswordPacket(password, epochSeconds)
 
-    /** Original pairing command: timestamp + password token + A:PW;P:<password token>; */
-    fun buildPasswordPacket(password: String, epochSeconds: Long = System.currentTimeMillis() / 1_000): ByteArray {
-        require(password.matches(Regex("^[0-9]{6}$"))) { "开门器密码必须是 6 位数字" }
-        val token = passwordToken(password)
-        return encrypt("$epochSeconds$token$PASSWORD_PREFIX$token;".toByteArray(Charsets.UTF_8))
-    }
+    fun buildOpenPacket(
+        profile: DeviceProfile,
+        epochSeconds: Long = System.currentTimeMillis() / 1_000L,
+    ): ByteArray = com.juren233.easyopen.shared.protocol.UnlockProtocol.buildOpenPacket(
+        profile = CoreDeviceProfile(
+            name = profile.name,
+            password = profile.password,
+            attribute = profile.attribute,
+            openTimeMs = profile.openTimeMs,
+            waitTimeMs = profile.waitTimeMs,
+            closeTimeMs = profile.closeTimeMs,
+            batteryLevel = profile.batteryLevel,
+        ),
+        epochSeconds = epochSeconds,
+    )
 
-    fun buildOpenPacket(profile: com.juren233.easyopen.data.DeviceProfile, epochSeconds: Long = System.currentTimeMillis() / 1_000): ByteArray {
-        require(profile.password.isNotBlank()) { "请先配置开门器密码" }
-        val sign = if (profile.attribute == 1) "-" else "+"
-        val command = "$OPEN_PREFIX$sign ${profile.openTimeMs},${profile.waitTimeMs},${profile.closeTimeMs};"
-        val token = passwordToken(profile.password)
-        return encrypt("$epochSeconds$token$command".toByteArray(Charsets.UTF_8))
-    }
+    fun passwordToken(password: String): String =
+        com.juren233.easyopen.shared.protocol.UnlockProtocol.passwordToken(password)
 
-    private fun encrypt(plaintext: ByteArray): ByteArray {
-        val paddedLength = ((plaintext.size + 15) / 16) * 16
-        val cipher = Cipher.getInstance("AES/ECB/NoPadding")
-        cipher.init(Cipher.ENCRYPT_MODE, SecretKeySpec(AES_KEY.toByteArray(Charsets.UTF_8), "AES"))
-        return cipher.doFinal(plaintext.copyOf(paddedLength))
-    }
+    fun md5(value: String): String =
+        com.juren233.easyopen.shared.protocol.UnlockProtocol.md5(value)
 
-    fun passwordToken(password: String): String = when {
-        password.matches(HEX_16) -> password
-        password.matches(HEX_32) -> password.substring(8, 24)
-        else -> md5(password).substring(8, 24)
-    }
+    fun parseBatteryLevel(scanRecord: ByteArray?): Int? =
+        com.juren233.easyopen.shared.protocol.UnlockProtocol.parseBatteryLevel(scanRecord)
 
-    fun md5(value: String): String {
-        val digest = MessageDigest.getInstance("MD5").digest(value.toByteArray(Charsets.UTF_8))
-        return digest.joinToString(separator = "") { "%02x".format(it.toInt() and 0xff) }
-    }
+    fun responseText(bytes: ByteArray): String =
+        com.juren233.easyopen.shared.protocol.UnlockProtocol.responseText(bytes)
 
+    fun responseHex(bytes: ByteArray): String =
+        com.juren233.easyopen.shared.protocol.UnlockProtocol.responseHex(bytes)
 
-    /** Compatibility entry point for callers that historically used UnlockProtocol for this parser. */
-    fun parseBatteryLevel(scanRecord: ByteArray): Int? = BatteryAdvertisementParser.parse(scanRecord)
+    fun isSuccess(bytes: ByteArray): Boolean =
+        com.juren233.easyopen.shared.protocol.UnlockProtocol.isSuccess(bytes)
 
-    fun responseText(bytes: ByteArray): String = bytes.toString(Charsets.UTF_8)
-        .filter { it == '\t' || it == '\n' || it == '\r' || it in ' '..'~' }
-        .trim()
+    fun isFailure(bytes: ByteArray): Boolean =
+        com.juren233.easyopen.shared.protocol.UnlockProtocol.isFailure(bytes)
 
-    fun responseHex(bytes: ByteArray): String = bytes.joinToString(separator = "") { "%02X".format(it.toInt() and 0xff) }
-
-    fun isSuccess(bytes: ByteArray): Boolean {
-        val ascii = responseText(bytes).uppercase()
-        val hex = responseHex(bytes)
-        return ascii.contains("OK") || hex.contains("4F4B")
-    }
-
-    fun isFailure(bytes: ByteArray): Boolean {
-        val ascii = responseText(bytes).uppercase()
-        val hex = responseHex(bytes)
-        return ascii.contains("ERROR") || ascii.contains("FAIL") || hex.contains("4552524F52")
-    }
-
-    fun responseSummary(bytes: ByteArray): String {
-        if (bytes.isEmpty()) return "空响应"
-        val ascii = responseText(bytes)
-        return if (ascii.isNotBlank()) ascii else "HEX ${responseHex(bytes)}"
-    }
+    fun responseSummary(bytes: ByteArray): String =
+        com.juren233.easyopen.shared.protocol.UnlockProtocol.responseSummary(bytes)
 }

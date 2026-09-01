@@ -19,7 +19,7 @@
 
 ## 项目简介
 
-EasyOpen 是一个面向 YILA 开门器的本地控制工具，提供 **Android 原生应用** 和 **Web Bluetooth 网页版** （不再维护）两种形态。
+EasyOpen 是一个面向 YILA 开门器的本地控制工具，提供 **Android 原生应用**、**iOS（Compose Multiplatform + Miuix）应用** 和 **Web Bluetooth 网页版**（不再维护）三种形态。
 
 项目只实现本地 BLE 开门主链路，不依赖登录、云端、MQTT、网关或远程开门服务。
 
@@ -76,14 +76,6 @@ app/build/outputs/apk/release/app-release.apk
 ```
 
 Debug 和 Release 默认使用项目的同一份正式签名。签名私钥只保存在本地的 `signing/easyopen-release.jks`，不应提交到仓库；首次克隆项目时，请按 [`keystore.properties.example`](keystore.properties.example) 创建本地 `keystore.properties`。
-
-## GitHub Actions
-
-- `Android Build & Release`：按 `app/build.gradle.kts` 的版本门控构建 Android APK，并按现有规则处理 tag/Release。
-- `iOS IPA Build`：按 Android 版本门控在 macOS runner 上构建未签名 IPA；iOS 包内版本号会自动把 `-beta.N` 转成 `X.Y.Z.N`、把 `-canary.N` 转成 `X.Y.Z.0.N`。
-- `iOS IPA Validation`：PR 或手动触发的强制 IPA 构建，不要求修改 `versionName` 或 `versionCode`，适合普通代码提交后的 CI 验证。
-
-iOS 版本转换只影响 iOS 的 `CFBundleShortVersionString`；Android 版本、仓库 tag 和 Release 显示版本仍然跟随 Android 端。
 
 ## Web Bluetooth 版（不再维护）
 

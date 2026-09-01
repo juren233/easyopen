@@ -24,6 +24,13 @@ enum class EasyOpenConnectionStatus {
     CONNECTED,
 }
 
+/** A platform-neutral discovered peripheral entry used by shared pairing UI. */
+data class EasyOpenBleDevice(
+    val binding: DeviceBinding,
+    val name: String,
+    val rssi: Int,
+)
+
 /**
  * Immutable BLE state consumed by common UI.
  *
@@ -36,7 +43,9 @@ data class EasyOpenBleSnapshot(
     val connectionStatus: EasyOpenConnectionStatus = EasyOpenConnectionStatus.NOT_FOUND,
     val activeBinding: DeviceBinding? = null,
     val rssi: Int? = null,
+    val bluetoothAvailable: Boolean = true,
     val batteryLevels: Map<DeviceBinding, Int> = emptyMap(),
+    val discoveredDevices: List<EasyOpenBleDevice> = emptyList(),
     val message: String? = null,
 ) {
     val busy: Boolean
@@ -47,7 +56,8 @@ data class EasyOpenBleSnapshot(
         batteryLevels[binding] ?: fallback
 
     fun canUnlock(binding: DeviceBinding, profile: CoreDeviceProfile): Boolean =
-        profile.password.isNotBlank() &&
+        bluetoothAvailable &&
+            profile.password.isNotBlank() &&
             binding.isUsable() &&
             connectionStatus in setOf(
                 EasyOpenConnectionStatus.DISCOVERED,

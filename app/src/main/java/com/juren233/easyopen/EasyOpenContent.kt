@@ -230,6 +230,7 @@ internal fun EasyOpenContent(
         )
         !onboardingComplete -> OnboardingNavigation(
             controller = controller,
+            blePort = blePort,
             existingDeviceCount = pairedDevices.size,
             onOpenBluetoothSettings = onOpenBluetoothSettings,
             onPaired = { profile ->
@@ -254,6 +255,7 @@ internal fun EasyOpenContent(
         )
         activeProfile == null -> OnboardingNavigation(
             controller = controller,
+            blePort = blePort,
             existingDeviceCount = 0,
             onOpenBluetoothSettings = onOpenBluetoothSettings,
             onPaired = { profile ->

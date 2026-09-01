@@ -1,4 +1,29 @@
 <resources>
+    <string name="add_opener_title">添加开门器</string>
+    <string name="configure_opener_title">设置开门器</string>
+    <string name="pair_opener_section">配对开门器</string>
+    <string name="add_another_opener_section">添加另一台开门器</string>
+    <string name="search_nearby_openers">搜索附近的开门器</string>
+    <string name="pairing_password_in_progress">正在验证密码，请保持开门器在附近</string>
+    <string name="searching">搜索中...</string>
+    <string name="keep_opener_powered_nearby">请让开门器保持通电，并靠近手机</string>
+    <string name="found_openers">找到 %1$d 台可配对的开门器</string>
+    <string name="open_bluetooth_settings">打开蓝牙设置</string>
+    <string name="search_again">重新搜索</string>
+    <string name="start_search">开始搜索</string>
+    <string name="search_results">搜索结果</string>
+    <string name="scan_import_title">扫码添加开门器</string>
+    <string name="no_opener_found">暂未找到开门器</string>
+    <string name="no_opener_found_summary">请检查开门器是否通电后再试</string>
+    <string name="device_signal_summary">%1$s · %2$d dBm</string>
+    <string name="password_dialog_title">输入开门器密码</string>
+    <string name="password_dialog_description">请输入 %1$s 的 6 位数字密码。验证只会执行配对初始化，不会发送开门指令。</string>
+    <string name="password_field_label">6 位数字密码</string>
+    <string name="verify_and_pair">验证并配对</string>
+    <string name="verifying">验证中...</string>
+    <string name="discard_settings_title">放弃当前设置？</string>
+    <string name="discard_settings_message">返回第一页会丢失当前设置，是否继续？</string>
+    <string name="pairing_flow_page_transition">配对流程页面切换</string>
     <string name="opener_name_optional">开门器名称（可选）</string>
     <string name="opener_name">开门器名称</string>
     <string name="home_title">EasyOpen</string>
@@ -14,7 +39,6 @@
     <string name="opener_settings_expanded">收起开门器设置</string>
     <string name="password_field_settings">开门器密码（6 位数字）</string>
     <string name="share_opener_title">分享开门器</string>
-    <string name="scan_import_title">扫码添加开门器</string>
     <string name="nfc_write_title">写入NFC标签</string>
     <string name="lock_direction">拉锁方向</string>
     <string name="forward">正向</string>
@@ -42,6 +66,7 @@
     <string name="auto_connect_signal_value_input">输入信号值（1-127）</string>
     <string name="auto_connect_signal_value_invalid">请输入 1 到 127 之间的数字</string>
     <string name="cancel">取消</string>
+    <string name="continue_action">继续</string>
     <string name="save_settings">保存设置</string>
     <string name="settings_title">设置</string>
     <string name="back">返回</string>

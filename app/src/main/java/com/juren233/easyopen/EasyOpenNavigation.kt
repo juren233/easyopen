@@ -105,7 +105,7 @@ internal fun EasyOpenNavigation(
             }
             entry<EasyOpenRoute.AddDevice> {
                 PairingPage(
-                    controller = controller,
+                    blePort = blePort,
                     existingDeviceCount = devices.size,
                     onOpenBluetoothSettings = onOpenBluetoothSettings,
                     onOpenScanner = { navigator.navigate(EasyOpenRoute.ScanImport) },

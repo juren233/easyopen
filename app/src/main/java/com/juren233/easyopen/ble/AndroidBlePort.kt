@@ -4,6 +4,7 @@ import com.juren233.easyopen.data.DeviceProfile
 import com.juren233.easyopen.shared.model.CoreDeviceProfile
 import com.juren233.easyopen.shared.model.DeviceBinding
 import com.juren233.easyopen.shared.platform.EasyOpenBlePort
+import com.juren233.easyopen.shared.state.EasyOpenBleDevice
 import com.juren233.easyopen.shared.state.EasyOpenBleOperation
 import com.juren233.easyopen.shared.state.EasyOpenBleSnapshot
 import com.juren233.easyopen.shared.state.EasyOpenConnectionStatus
@@ -28,31 +29,26 @@ class AndroidBlePort(
         controller.state,
         controller.openerConnection,
         controller.batteryLevels,
-    ) { operation, connection, batteryLevels ->
-        EasyOpenBleSnapshot(
-            operation = operation.toCommonOperation(),
-            connectionStatus = connection.status.toCommonStatus(),
-            activeBinding = connection.address
-                .takeIf(String::isNotBlank)
-                ?.let(::androidBinding),
-            rssi = connection.rssi,
-            batteryLevels = batteryLevels.mapKeys { (address, _) -> androidBinding(address) },
-            message = operation.messageOrNull(),
+        controller.devices,
+    ) { operation, connection, batteryLevels, devices ->
+        snapshot(
+            operation = operation,
+            connection = connection,
+            batteryLevels = batteryLevels,
+            devices = devices,
         )
     }.stateIn(
         scope = scope,
         started = SharingStarted.Eagerly,
-        initialValue = EasyOpenBleSnapshot(
-            operation = controller.state.value.toCommonOperation(),
-            connectionStatus = controller.openerConnection.value.status.toCommonStatus(),
-            activeBinding = controller.openerConnection.value.address
-                .takeIf(String::isNotBlank)
-                ?.let(::androidBinding),
-            rssi = controller.openerConnection.value.rssi,
-            batteryLevels = controller.batteryLevels.value.mapKeys { (address, _) -> androidBinding(address) },
-            message = controller.state.value.messageOrNull(),
+        initialValue = snapshot(
+            operation = controller.state.value,
+            connection = controller.openerConnection.value,
+            batteryLevels = controller.batteryLevels.value,
+            devices = controller.devices.value,
         ),
     )
+
+    fun isBluetoothEnabled(): Boolean = controller.isBluetoothEnabled()
 
     override fun startScan() {
         controller.startScan()
@@ -67,10 +63,39 @@ class AndroidBlePort(
         controller.connect(profile.toAndroidProfile(address))
     }
 
+    override fun pair(binding: DeviceBinding, profile: CoreDeviceProfile) {
+        val address = (binding as? DeviceBinding.AndroidMac)?.address ?: return
+        controller.pair(address, profile.password)
+    }
+
     override fun unlock(binding: DeviceBinding, profile: CoreDeviceProfile) {
         val address = (binding as? DeviceBinding.AndroidMac)?.address ?: return
         controller.unlock(profile.toAndroidProfile(address))
     }
+
+    private fun snapshot(
+        operation: BleState,
+        connection: OpenerConnectionSnapshot,
+        batteryLevels: Map<String, Int>,
+        devices: List<DiscoveredDevice>,
+    ): EasyOpenBleSnapshot = EasyOpenBleSnapshot(
+        operation = operation.toCommonOperation(),
+        connectionStatus = connection.status.toCommonStatus(),
+        activeBinding = connection.address
+            .takeIf(String::isNotBlank)
+            ?.let(::androidBinding),
+        rssi = connection.rssi,
+        bluetoothAvailable = controller.isBluetoothEnabled(),
+        batteryLevels = batteryLevels.mapKeys { (address, _) -> androidBinding(address) },
+        discoveredDevices = devices.map { device ->
+            EasyOpenBleDevice(
+                binding = androidBinding(device.device.address),
+                name = device.name,
+                rssi = device.rssi,
+            )
+        },
+        message = operation.messageOrNull(),
+    )
 }
 
 private fun androidBinding(address: String): DeviceBinding.AndroidMac =

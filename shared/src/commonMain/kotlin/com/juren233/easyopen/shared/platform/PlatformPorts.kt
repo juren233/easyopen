@@ -12,6 +12,7 @@ interface EasyOpenBlePort {
     fun startScan()
     fun stopScan()
     fun connect(binding: DeviceBinding, profile: CoreDeviceProfile)
+    fun pair(binding: DeviceBinding, profile: CoreDeviceProfile)
     fun unlock(binding: DeviceBinding, profile: CoreDeviceProfile)
 }
 

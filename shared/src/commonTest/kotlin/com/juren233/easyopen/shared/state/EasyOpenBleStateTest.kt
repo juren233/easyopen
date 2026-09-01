@@ -25,6 +25,16 @@ class EasyOpenBleStateTest {
     }
 
     @Test
+    fun unavailableBluetoothCannotUnlockEvenWhenLinkSnapshotLooksReady() {
+        assertFalse(
+            EasyOpenBleSnapshot(
+                bluetoothAvailable = false,
+                connectionStatus = EasyOpenConnectionStatus.CONNECTED,
+            ).canUnlock(binding, profile),
+        )
+    }
+
+    @Test
     fun connectingBusyOrIncompleteProfileCannotUnlock() {
         assertFalse(
             EasyOpenBleSnapshot(

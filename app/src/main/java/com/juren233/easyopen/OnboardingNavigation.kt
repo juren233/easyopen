@@ -22,6 +22,7 @@ import com.juren233.easyopen.ui.QrImportPage
 @Composable
 internal fun OnboardingNavigation(
     controller: BleDoorController,
+    blePort: com.juren233.easyopen.shared.platform.EasyOpenBlePort,
     existingDeviceCount: Int,
     onOpenBluetoothSettings: () -> Unit,
     onPaired: (DeviceProfile) -> Unit,
@@ -45,7 +46,7 @@ internal fun OnboardingNavigation(
         entryProvider<NavKey> {
             entry<EasyOpenRoute.OnboardingPairing> {
                 PairingPage(
-                    controller = controller,
+                    blePort = blePort,
                     existingDeviceCount = existingDeviceCount,
                     onOpenBluetoothSettings = onOpenBluetoothSettings,
                     onOpenScanner = { navigator.navigate(EasyOpenRoute.ScanImport) },

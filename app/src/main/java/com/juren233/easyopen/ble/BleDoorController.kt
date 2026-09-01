@@ -642,6 +642,19 @@ class BleDoorController(context: Context) {
 
     /** Starts the original six-digit password initialization command, without opening the lock. */
     @SuppressLint("MissingPermission")
+    fun pair(address: String, password: String) {
+        val normalizedAddress = address.trim().uppercase()
+        val device = _devices.value.firstOrNull {
+            it.device.address.equals(normalizedAddress, ignoreCase = true)
+        }
+        if (device == null) {
+            _state.value = BleState.Error("请重新搜索并选择开门器")
+            return
+        }
+        pair(device, password)
+    }
+
+    @SuppressLint("MissingPermission")
     fun pair(device: DiscoveredDevice, password: String) {
         val normalizedPassword = password.trim()
         if (!normalizedPassword.matches(Regex("^[0-9]{6}$"))) {

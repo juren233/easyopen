@@ -1,6 +1,6 @@
 # EasyOpen 代码组织
 
-本项目按职责拆分 Android 端代码，避免页面、导航、BLE 协议和持久化逻辑继续集中在单个文件中。
+本项目按职责拆分 Android/iOS 代码：shared 负责跨平台 UI、状态和协议核心，平台模块负责 BLE、NFC、权限、存储和系统入口，避免页面、导航、BLE 协议和持久化逻辑继续集中在单个文件中。
 
 ## 模块边界
 
@@ -12,17 +12,23 @@
   - Navigation 3 路由、页面栈和页面间导航回调。
 - `app/src/main/java/com/juren233/easyopen/ui/`
   - `PermissionGuidePage.kt`：首次授权引导。
-  - `PairingPage.kt`：配对流程状态机、密码验证和流程页切换。
-  - `PairingDiscoveryPage.kt`：设备搜索和搜索结果展示。
-  - `PairingSettingsPage.kt`：配对完成后的开门器设置页。
-  - `HomePage.kt`：主页、开门操作和主页设置展开项。
+  - `PairingPage.kt`：Android 平台宿主，只负责端口转换和 Android 回调。
+  - `HomePage.kt`：Android 主页宿主、开门操作、二维码/NFC/更新等平台副作用。
   - `DeviceChooserDialog.kt`：已添加开门器切换弹窗。
-  - `UiComponents.kt`：跨页面复用的输入框和电量展示格式化。
+  - `UiComponents.kt`：仍在 Android 使用的本地复用组件。
+- `shared/src/commonMain/kotlin/com/juren233/easyopen/shared/ui/`
+  - `PairingPageContent.kt`：Android/iOS 共用的搜索、密码配对和开门器设置 UI。
+  - `HomePageContent.kt`：Android/iOS 共用主页 UI。
+  - `SettingsPageContent.kt`：Android/iOS 共用设置 UI。
 - `app/src/main/java/com/juren233/easyopen/ble/`
-  - `BleDoorController.kt`：扫描、连接、配对、通知、重试和状态流。
+  - `BleDoorController.kt`：Android 扫描、连接、配对、通知、重试和状态流。
+  - `AndroidBlePort.kt`：将 Android BLE 状态和命令映射到 shared API。
   - `OpenerConnectionState.kt`：主页四态连接快照（未发现、已发现、连接中、已连接）。
   - `OpenerConnectionPolicy.kt`：RSSI 自动连接阈值、信号新鲜度和自动重试冷却策略。
-  - `UnlockProtocol.kt`：纯协议包构造、响应解析和广告电量解析。
+  - `UnlockProtocol.kt`：shared 协议核心的 Android 兼容 facade。
+- `shared/src/commonMain/kotlin/com/juren233/easyopen/shared/protocol/`
+  - `UnlockProtocol.kt`：Android/iOS 共用的命令构造、响应解析和广告电量解析。
+  - `Aes128.kt`、`Md5.kt`：仅实现旧设备协议所需的跨平台密码算法。
 - `app/src/main/java/com/juren233/easyopen/data/`
   - `DeviceProfile.kt`：设备配置模型。
   - `DeviceStore.kt`：本地设备配置持久化。
@@ -31,7 +37,7 @@
 
 ## 依赖方向
 
-页面只依赖控制器暴露的状态/操作和数据模型；页面不直接操作 GATT 或 SharedPreferences。协议解析保持为无 Android UI 依赖的纯逻辑，便于单元测试。新增功能优先放入职责对应的文件，避免继续扩大 `MainActivity.kt` 或单个页面文件。
+shared 页面只依赖平台无关快照和回调；页面不直接操作 GATT、`BluetoothDevice`、`CBPeripheral` 或 `SharedPreferences`。Android `AndroidBlePort` 和 iOS `IosCoreBluetoothPort` 分别实现同一份 BLE 边界。协议解析保持在 `commonMain` 的纯逻辑模块，便于 Android host test 和 iOS target 编译验证。新增功能优先放入职责对应的文件，避免继续扩大 `MainActivity.kt` 或单个页面文件。
 
 ## NFC NDEF 开门链路
 
@@ -65,8 +71,8 @@
 - `app/src/main/java/com/juren233/easyopen/ui/TransferSourceActions.kt`
   - 复用初始态和识别成功态的扫码、相册和备份恢复操作按钮，避免文案和状态分支散落在页面内。
 - `app/src/main/java/com/juren233/easyopen/ui/SettingsPage.kt`
-  - Miuix 二级设置页，包含“个性化”和“数据”两个设置类。
-- `app/src/main/java/com/juren233/easyopen/ui/EasyOpenTheme.kt`
+  - Android 设置宿主，包含 Android 文件备份/恢复副作用。
+- `shared/src/commonMain/kotlin/com/juren233/easyopen/shared/ui/EasyOpenTheme.kt`
   - 将持久化主题模式映射到 Miuix `ThemeController`，避免在 `MainActivity` 固定包裹主题导致设置无法即时生效。
 - `app/src/main/java/com/juren233/easyopen/ui/QrCameraPreview.kt`
   - JourneyApps ZXing Android Embedded 相机预览、运行时相机权限、连续解码和相机生命周期绑定；页面上叠加扫码框，不再只有相册导入。
@@ -83,3 +89,11 @@
 - `app/src/main/java/com/juren233/easyopen/utils/UpdateData.kt` 在 Activity 进入前台时读取 `juren233/easyopen` 的最新正式 GitHub Release，并从 Release APK 文件名提取 `versionCode`；只有远端版本更高时才发布更新状态。
 - `HomePage.kt` 只在 `UpdateData.availableUpdate` 非空时插入顶部更新横幅，未检测到更新时不占用主页布局空间。
 - `app/build.gradle.kts` 将 Debug 与 Release 指向同一个 `easyOpenRelease` 签名配置；本地密钥通过被忽略的 `keystore.properties` 提供，CI 通过仓库 Secrets 注入同一份密钥。
+
+
+## iOS 平台边界
+
+- `shared/src/iosMain/kotlin/com/juren233/easyopen/shared/platform/IosCoreBluetoothPort.kt` 持有 `CBCentralManager`、`CBPeripheral`、服务/特征发现、通知启用、配对/开门写入和通知响应状态。
+- 只有 `DeviceBinding.IosPeripheral(identifier)` 进入 shared 状态；不把 `CBPeripheral` 或 iOS UUID 写入 Android MAC 分享/备份格式。
+- `shared/src/iosMain/kotlin/com/juren233/easyopen/shared/ui/IosMainViewController.kt` 提供 shared Pairing/Home/Settings 宿主和当前阶段的 `NSUserDefaults` 单设备存储。
+- Core NFC、系统文件选择器、二维码导入导出和 iOS 真机验收仍是独立待办。
