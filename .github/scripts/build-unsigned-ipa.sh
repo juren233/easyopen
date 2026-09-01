@@ -56,6 +56,29 @@ app_path="$(find "$archive_path/Products/Applications" -maxdepth 1 -type d -name
 test -n "$app_path"
 test -d "$app_path"
 
+# Compose Multiplatform resources are not part of a static Kotlin/Native
+# framework's executable. The normal Xcode integration runs
+# syncComposeResourcesForIos, but this repository intentionally drives
+# xcodebuild from a minimal hand-written project and packages the archive
+# manually. Sync the resource tree into the archived app before creating the
+# IPA; otherwise the first stringResource() lookup can terminate the app at
+# launch even though archive/link validation succeeds.
+app_products_dir="$(dirname "$app_path")"
+app_bundle_name="$(basename "$app_path")"
+compose_resources_dir="$app_path/compose-resources"
+PLATFORM_NAME=iphoneos \
+ARCHS=arm64 \
+BUILT_PRODUCTS_DIR="$app_products_dir" \
+UNLOCALIZED_RESOURCES_FOLDER_PATH="$app_bundle_name" \
+./gradlew --no-daemon --max-workers=2 --build-cache \
+  -Pcompose.ios.resources.platform=iphoneos \
+  -Pcompose.ios.resources.archs=arm64 \
+  :shared:syncComposeResourcesForIos
+test -d "$compose_resources_dir/composeResources"
+test -f "$compose_resources_dir/composeResources/easyopen.shared.generated.resources/values/strings.commonMain.cvr"
+compose_resource_files="$(find "$compose_resources_dir" -type f -print | wc -l | tr -d '[:space:]')"
+test "$compose_resource_files" -gt 0
+
 actual_ios_version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app_path/Info.plist")"
 actual_version_code="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$app_path/Info.plist")"
 test "$actual_ios_version" = "$ios_version"
@@ -81,6 +104,8 @@ fi
   printf 'app_architectures=%s\n' "$app_architectures"
   printf 'framework_architectures=%s\n' "$framework_architectures"
   printf 'unsigned=true\n'
+  printf 'compose_resources_dir=%s\n' "${compose_resources_dir#"$app_path/"}"
+  printf 'compose_resource_files=%s\n' "$compose_resource_files"
   printf '\nlinked_libraries:\n'
   /usr/bin/otool -L "$app_executable"
 } > "$inspection_path"
