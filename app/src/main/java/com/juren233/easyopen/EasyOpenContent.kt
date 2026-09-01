@@ -19,6 +19,8 @@ import com.juren233.easyopen.ble.BleDoorController
 import com.juren233.easyopen.data.AppSettings
 import com.juren233.easyopen.data.DeviceProfile
 import com.juren233.easyopen.data.DeviceStore
+import com.juren233.easyopen.data.TransferCodec
+import com.juren233.easyopen.shared.model.CoreDeviceProfile
 import com.juren233.easyopen.ui.PermissionGuidePage
 import com.juren233.easyopen.nfc.NfcTagEvent
 import com.juren233.easyopen.nfc.NfcWriteRequest
@@ -65,6 +67,7 @@ internal fun EasyOpenContent(
     var onboardingComplete by remember {
         mutableStateOf(DeviceStore.onboardingComplete(preferences, pairedDevices))
     }
+    var pendingImportedProfiles by remember { mutableStateOf<List<DeviceProfile>>(emptyList()) }
 
     LaunchedEffect(permissionsGranted) {
         if (!permissionsGranted) onRequestPermissions()
@@ -118,6 +121,43 @@ internal fun EasyOpenContent(
             imported.any { it.address.equals(existing.address, ignoreCase = true) }
         } + imported
         persistDevices(merged, imported.first().address)
+    }
+
+    fun applyRestoredBackup(snapshot: TransferCodec.BackupSnapshot) {
+        val bound = snapshot.devices.filter { it.address.isNotBlank() }
+        if (bound.isNotEmpty()) {
+            persistDevices(bound, snapshot.activeAddress)
+        } else if (pairedDevices.isEmpty()) {
+            DeviceStore.save(
+                preferences = preferences,
+                devices = emptyList(),
+                activeAddress = "",
+                onboardingComplete = false,
+            )
+            onboardingComplete = false
+        }
+        pendingImportedProfiles = snapshot.devices.filter { it.address.isBlank() }
+        onSettingsChange(
+            AppSettings(
+                themeMode = snapshot.themeMode,
+                monetEnabled = snapshot.monetEnabled,
+                autoUnlockOnAppOpen = snapshot.autoUnlockOnAppOpen,
+                autoConnectEnabled = snapshot.autoConnectEnabled,
+                autoConnectRange = snapshot.autoConnectRange,
+                customAutoConnectRssi = snapshot.customAutoConnectRssi,
+            ),
+        )
+    }
+
+    fun finishOnboardingPair(profile: DeviceProfile) {
+        if (pendingImportedProfiles.isNotEmpty()) {
+            importDevices(listOf(profile))
+            pendingImportedProfiles = pendingImportedProfiles.drop(1)
+        } else if (pairedDevices.isEmpty()) {
+            persistDevices(listOf(profile), profile.address)
+        } else {
+            importDevices(listOf(profile))
+        }
     }
 
     val activeProfile = pairedDevices.firstOrNull {
@@ -228,55 +268,39 @@ internal fun EasyOpenContent(
         !permissionsGranted -> PermissionGuidePage(
             onRequestPermissions = onRequestPermissions,
         )
+        pendingImportedProfiles.isNotEmpty() -> OnboardingNavigation(
+            controller = controller,
+            blePort = blePort,
+            existingDeviceCount = pairedDevices.size,
+            onOpenBluetoothSettings = onOpenBluetoothSettings,
+            onPaired = ::finishOnboardingPair,
+            onImported = { imported ->
+                importDevices(imported)
+            },
+            onRestored = ::applyRestoredBackup,
+            initialProfile = pendingImportedProfiles.first().toCoreProfile(),
+        )
         !onboardingComplete -> OnboardingNavigation(
             controller = controller,
             blePort = blePort,
             existingDeviceCount = pairedDevices.size,
             onOpenBluetoothSettings = onOpenBluetoothSettings,
-            onPaired = { profile ->
-                persistDevices(listOf(profile), profile.address)
-            },
+            onPaired = ::finishOnboardingPair,
             onImported = { imported ->
                 persistDevices(imported, imported.firstOrNull()?.address.orEmpty())
             },
-            onRestored = { snapshot ->
-                persistDevices(snapshot.devices, snapshot.activeAddress)
-                onSettingsChange(
-                    AppSettings(
-                        themeMode = snapshot.themeMode,
-                        monetEnabled = snapshot.monetEnabled,
-                        autoUnlockOnAppOpen = snapshot.autoUnlockOnAppOpen,
-                        autoConnectEnabled = snapshot.autoConnectEnabled,
-                        autoConnectRange = snapshot.autoConnectRange,
-                        customAutoConnectRssi = snapshot.customAutoConnectRssi,
-                    ),
-                )
-            },
+            onRestored = ::applyRestoredBackup,
         )
         activeProfile == null -> OnboardingNavigation(
             controller = controller,
             blePort = blePort,
             existingDeviceCount = 0,
             onOpenBluetoothSettings = onOpenBluetoothSettings,
-            onPaired = { profile ->
-                persistDevices(listOf(profile), profile.address)
-            },
+            onPaired = ::finishOnboardingPair,
             onImported = { imported ->
                 persistDevices(imported, imported.firstOrNull()?.address.orEmpty())
             },
-            onRestored = { snapshot ->
-                persistDevices(snapshot.devices, snapshot.activeAddress)
-                onSettingsChange(
-                    AppSettings(
-                        themeMode = snapshot.themeMode,
-                        monetEnabled = snapshot.monetEnabled,
-                        autoUnlockOnAppOpen = snapshot.autoUnlockOnAppOpen,
-                        autoConnectEnabled = snapshot.autoConnectEnabled,
-                        autoConnectRange = snapshot.autoConnectRange,
-                        customAutoConnectRssi = snapshot.customAutoConnectRssi,
-                    ),
-                )
-            },
+            onRestored = ::applyRestoredBackup,
         )
         else -> {
             val activeProfileState = androidx.compose.runtime.rememberUpdatedState(activeProfile)
@@ -311,19 +335,7 @@ internal fun EasyOpenContent(
                 onImported = ::importDevices,
                 onSettingsChange = onSettingsChange,
                 onNfcWriteRequested = requestNfcWrite,
-                onRestore = { snapshot ->
-                    persistDevices(snapshot.devices, snapshot.activeAddress)
-                    onSettingsChange(
-                        AppSettings(
-                            themeMode = snapshot.themeMode,
-                            monetEnabled = snapshot.monetEnabled,
-                            autoUnlockOnAppOpen = snapshot.autoUnlockOnAppOpen,
-                            autoConnectEnabled = snapshot.autoConnectEnabled,
-                            autoConnectRange = snapshot.autoConnectRange,
-                            customAutoConnectRssi = snapshot.customAutoConnectRssi,
-                        ),
-                    )
-                },
+                onRestore = ::applyRestoredBackup,
             )
         }
     }
@@ -357,3 +369,15 @@ internal fun EasyOpenContent(
         }
     }
 }
+
+
+private fun DeviceProfile.toCoreProfile(): CoreDeviceProfile = CoreDeviceProfile(
+    name = name,
+    password = password,
+    attribute = attribute,
+    openTimeMs = openTimeMs,
+    waitTimeMs = waitTimeMs,
+    closeTimeMs = closeTimeMs,
+    batteryLevel = batteryLevel,
+    hardwareMac = hardwareMac,
+)

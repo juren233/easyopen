@@ -22,6 +22,7 @@ import com.juren233.easyopen.BuildConfig
 import com.juren233.easyopen.R
 import com.juren233.easyopen.data.AutoConnectSettings
 import com.juren233.easyopen.data.DeviceProfile
+import com.juren233.easyopen.shared.protocol.EasyOpenAdvertisementParser
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -43,6 +44,7 @@ data class DiscoveredDevice(
     val device: BluetoothDevice,
     val name: String,
     val rssi: Int,
+    val hardwareMac: String? = null,
     val likelyYiLa: Boolean = true,
 )
 
@@ -217,17 +219,36 @@ class BleDoorController(context: Context) {
     private fun consumeDiscoveryScanResult(result: ScanResult) {
         val device = result.device ?: return
         val name = advertisedName(device, result)
+        BleIdentityDiagnostics.logScanResult(result, name)
         if (!isYiLaOpenerName(name)) return
+        val identity = parseHardwareIdentity(result)
+        val previous = _devices.value.firstOrNull {
+            it.device.address.equals(device.address, ignoreCase = true)
+        }
         updateBatteryLevel(device.address, result.scanRecord?.bytes)
         val next = DiscoveredDevice(
             device = device,
             name = name.trim().ifBlank { text(R.string.default_opener_advertised_name) },
             rssi = result.rssi,
+            hardwareMac = identity?.hardwareMac ?: previous?.hardwareMac,
         )
         _devices.value = (_devices.value
             .filterNot { it.device.address.equals(device.address, ignoreCase = true) } + next)
             .sortedByDescending(DiscoveredDevice::rssi)
     }
+
+    private fun parseHardwareIdentity(result: ScanResult) = result.scanRecord
+        ?.manufacturerSpecificData
+        ?.let { data ->
+            (0 until data.size()).asSequence()
+                .mapNotNull { index ->
+                    EasyOpenAdvertisementParser.parseAndroidManufacturerData(
+                        companyId = data.keyAt(index),
+                        data = data.valueAt(index),
+                    )
+                }
+                .firstOrNull()
+        }
 
     @SuppressLint("MissingPermission")
     private fun advertisedName(device: BluetoothDevice, result: ScanResult): String {
@@ -428,6 +449,7 @@ class BleDoorController(context: Context) {
     private fun consumePresenceScanResult(windowId: Int, result: ScanResult) {
         val profile = presenceProfile ?: return
         val device = result.device ?: return
+        BleIdentityDiagnostics.logScanResult(result, advertisedName(device, result))
         val address = device.address.trim().uppercase()
         val targetAddress = presenceLockedAddress ?: profile.address.trim().uppercase()
         // Once the active profile is known, only its address can claim the lock.
@@ -557,6 +579,7 @@ class BleDoorController(context: Context) {
     @SuppressLint("MissingPermission")
     private fun consumeBatteryScanResult(windowId: Int, result: ScanResult) {
         val device = result.device ?: return
+        BleIdentityDiagnostics.logScanResult(result, advertisedName(device, result))
         val address = device.address.trim().uppercase()
         val targetAddress = batteryScanTargetAddress
         val name = advertisedName(device, result)

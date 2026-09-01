@@ -18,6 +18,7 @@ internal fun PairingPage(
     onOpenScanner: (() -> Unit)?,
     onCancel: (() -> Unit)?,
     onPaired: (DeviceProfile) -> Unit,
+    initialProfile: CoreDeviceProfile? = null,
 ) {
     val snapshot by blePort.state.collectAsState()
     val controller = (blePort as? com.juren233.easyopen.ble.AndroidBlePort)
@@ -36,6 +37,7 @@ internal fun PairingPage(
             blePort.stopScan()
             blePort.pair(binding, profile)
         },
+        initialProfile = initialProfile,
         onPaired = { binding, profile ->
             val address = (binding as? DeviceBinding.AndroidMac)?.address ?: return@PairingPageContent
             onPaired(profile.toAndroidProfile(address))
@@ -52,4 +54,5 @@ private fun CoreDeviceProfile.toAndroidProfile(address: String): DeviceProfile =
     waitTimeMs = waitTimeMs,
     closeTimeMs = closeTimeMs,
     batteryLevel = batteryLevel,
+    hardwareMac = hardwareMac,
 )

@@ -129,6 +129,7 @@ private fun DeviceProfile.toCoreProfile(): CoreDeviceProfile = CoreDeviceProfile
     waitTimeMs = waitTimeMs,
     closeTimeMs = closeTimeMs,
     batteryLevel = batteryLevel,
+    hardwareMac = hardwareMac,
 )
 
 private fun CoreDeviceProfile.toAndroidProfile(address: String): DeviceProfile = DeviceProfile(
@@ -140,4 +141,5 @@ private fun CoreDeviceProfile.toAndroidProfile(address: String): DeviceProfile =
     waitTimeMs = waitTimeMs,
     closeTimeMs = closeTimeMs,
     batteryLevel = batteryLevel,
+    hardwareMac = hardwareMac,
 )

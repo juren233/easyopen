@@ -119,7 +119,7 @@ object TransferCodec {
     fun decodeBackup(raw: String): BackupSnapshot? = runCatching {
         val envelope = json.decodeFromString<BackupEnvelope>(raw)
         require(envelope.version == BACKUP_VERSION)
-        val devices = decodeProfiles(envelope.devices)
+        val devices = decodeProfiles(envelope.devices, allowUnbound = true)
         require(devices.isNotEmpty())
         BackupSnapshot(
             devices = devices,
@@ -127,7 +127,7 @@ object TransferCodec {
                 (envelope.activeAndroidMac ?: envelope.activeAddress).orEmpty(),
             )
                 .takeIf { address -> devices.any { it.address.equals(address, ignoreCase = true) } }
-                ?: devices.first().address,
+                ?: devices.firstOrNull { it.address.isNotBlank() }?.address.orEmpty(),
             themeMode = envelope.themeMode.coerceIn(0, 2),
             monetEnabled = envelope.monetEnabled,
             autoUnlockOnAppOpen = envelope.autoUnlockOnAppOpen,
@@ -226,6 +226,7 @@ object TransferCodec {
                             waitTimeMs = waitTimeMs.coerceIn(0, 60_000),
                             closeTimeMs = closeTimeMs.coerceIn(0, 60_000),
                             batteryLevel = batteryLevel,
+                            hardwareMac = address,
                         ),
                     )
                 }
@@ -245,15 +246,23 @@ object TransferCodec {
                 waitTimeMs = waitTimeMs,
                 closeTimeMs = closeTimeMs,
                 batteryLevel = batteryLevel,
+                hardwareMac = DeviceStore.normalizeHardwareMac(hardwareMac ?: address),
             ),
-            androidMac = DeviceStore.normalizeAddress(address),
+            androidMac = DeviceStore.normalizeHardwareMac(hardwareMac ?: address),
         )
 
-    private fun decodeProfiles(profiles: List<EasyOpenTransferProfile>): List<DeviceProfile> {
+    private fun decodeProfiles(
+        profiles: List<EasyOpenTransferProfile>,
+        allowUnbound: Boolean = false,
+    ): List<DeviceProfile> {
         return profiles.mapNotNull { item ->
             val address = DeviceStore.normalizeAddress(item.resolvedAndroidMac().orEmpty())
             val password = item.password
-            if (!isValidAddress(address) || password.length != 6 || password.any { !it.isDigit() }) return@mapNotNull null
+            val addressIsValid = isValidAddress(address)
+            if ((!allowUnbound && !addressIsValid) || (allowUnbound && address.isNotBlank() && !addressIsValid)) {
+                return@mapNotNull null
+            }
+            if (password.length != 6 || password.any { !it.isDigit() }) return@mapNotNull null
             DeviceProfile(
                 name = item.name.ifBlank { DeviceStore.DEFAULT_NAME },
                 address = address,
@@ -263,8 +272,14 @@ object TransferCodec {
                 waitTimeMs = item.waitTimeMs.coerceIn(0, 60_000),
                 closeTimeMs = item.closeTimeMs.coerceIn(0, 60_000),
                 batteryLevel = item.batteryLevel?.takeIf { it in 1..5 },
+                hardwareMac = address.takeIf(String::isNotBlank),
             )
-        }.distinctBy { it.address }
+        }.let { decoded ->
+            val seenBoundAddresses = mutableSetOf<String>()
+            decoded.filter { profile ->
+                profile.address.isBlank() || seenBoundAddresses.add(profile.address)
+            }
+        }
     }
 
     private fun isValidAddress(address: String): Boolean {

@@ -92,6 +92,7 @@ class AndroidBlePort(
                 binding = androidBinding(device.device.address),
                 name = device.name,
                 rssi = device.rssi,
+                hardwareMac = device.hardwareMac,
             )
         },
         message = operation.messageOrNull(),

@@ -39,6 +39,7 @@ object DeviceStore {
                 openTimeMs = preferences.getInt(LEGACY_OPEN_TIME, 650),
                 waitTimeMs = preferences.getInt(LEGACY_WAIT_TIME, 2_000),
                 closeTimeMs = preferences.getInt(LEGACY_CLOSE_TIME, 600),
+                hardwareMac = legacyAddress,
             ),
         )
     }
@@ -60,7 +61,12 @@ object DeviceStore {
         onboardingComplete: Boolean,
     ) {
         val normalizedDevices = devices
-            .map { it.copy(address = normalizeAddress(it.address)) }
+            .map {
+                it.copy(
+                    address = normalizeAddress(it.address),
+                    hardwareMac = normalizeHardwareMac(it.hardwareMac ?: it.address),
+                )
+            }
             .distinctBy { it.address.uppercase() }
         preferences.edit()
             .putString(KEY_DEVICES, encode(normalizedDevices))
@@ -70,6 +76,10 @@ object DeviceStore {
     }
 
     fun normalizeAddress(address: String): String = address.trim().uppercase()
+
+    fun normalizeHardwareMac(address: String?): String? = address
+        ?.let(::normalizeAddress)
+        ?.takeIf { it.matches(Regex("[0-9A-F]{2}(:[0-9A-F]{2}){5}")) }
 
     private fun encode(devices: List<DeviceProfile>): String {
         val array = JSONArray()
@@ -84,6 +94,7 @@ object DeviceStore {
                     put("waitTimeMs", device.waitTimeMs)
                     put("closeTimeMs", device.closeTimeMs)
                     device.batteryLevel?.let { put("batteryLevel", it.coerceIn(1, 5)) }
+                    device.hardwareMac?.let { put("hardwareMac", normalizeHardwareMac(it)) }
                 },
             )
         }
@@ -99,6 +110,7 @@ object DeviceStore {
                     val address = normalizeAddress(item.optString("address"))
                     val password = item.optString("password")
                     if (address.isBlank() || password.isBlank()) continue
+                    val hardwareMac = normalizeHardwareMac(item.optString("hardwareMac")) ?: address
                     add(
                         DeviceProfile(
                             name = item.optString("name").ifBlank { DEFAULT_NAME },
@@ -109,6 +121,7 @@ object DeviceStore {
                             waitTimeMs = item.optInt("waitTimeMs", 2_000).coerceIn(0, 60_000),
                             closeTimeMs = item.optInt("closeTimeMs", 600).coerceIn(0, 60_000),
                             batteryLevel = item.optInt("batteryLevel", -1).takeIf { it in 1..5 },
+                            hardwareMac = hardwareMac,
                         ),
                     )
                 }

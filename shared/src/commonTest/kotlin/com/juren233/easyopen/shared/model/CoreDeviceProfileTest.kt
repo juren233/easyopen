@@ -14,6 +14,7 @@ class CoreDeviceProfileTest {
             waitTimeMs = -1,
             closeTimeMs = 600,
             batteryLevel = 9,
+            hardwareMac = " aa:bb:cc:dd:ee:ff ",
         ).normalized()
 
         assertEquals("门口", normalized.name)
@@ -21,5 +22,6 @@ class CoreDeviceProfileTest {
         assertEquals(60_000, normalized.openTimeMs)
         assertEquals(0, normalized.waitTimeMs)
         assertNull(normalized.batteryLevel)
+        assertEquals("AA:BB:CC:DD:EE:FF", normalized.hardwareMac)
     }
 }

@@ -30,6 +30,7 @@ internal object IosDeviceStore {
         val waitTimeMs: Int,
         val closeTimeMs: Int,
         val batteryLevel: Int? = null,
+        val hardwareMac: String? = null,
     )
 
     fun load(defaults: NSUserDefaults): List<EasyOpenSavedDevice> {
@@ -91,6 +92,7 @@ internal object IosDeviceStore {
                         waitTimeMs = device.profile.waitTimeMs,
                         closeTimeMs = device.profile.closeTimeMs,
                         batteryLevel = device.profile.batteryLevel,
+                        hardwareMac = device.profile.hardwareMac,
                     )
                 },
             ),
@@ -125,6 +127,7 @@ internal object IosDeviceStore {
                 waitTimeMs = stored.waitTimeMs,
                 closeTimeMs = stored.closeTimeMs,
                 batteryLevel = stored.batteryLevel,
+                hardwareMac = stored.hardwareMac,
             ).normalized(),
         )
     }

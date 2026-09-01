@@ -48,7 +48,7 @@ android {
         applicationId = "com.juren233.easyopen"
         minSdk = 33
         targetSdk = 37
-        versionCode = 48
+        versionCode = 51
         versionName = ciVersionName ?: "1.1.0-canary"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

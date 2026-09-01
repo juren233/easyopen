@@ -29,11 +29,12 @@ class EasyOpenTransferTest {
     }
 
     @Test
-    fun androidProjectionCarriesOnlyOptionalMacBinding() {
+    fun androidProjectionCarriesHardwareMacForMatching() {
         val transfer = EasyOpenTransferProfile.fromCoreProfile(profile, "AA:BB:CC:DD:EE:FF")
 
         assertEquals("AA:BB:CC:DD:EE:FF", transfer.androidMac)
-        assertEquals(profile, transfer.toCoreProfile())
+        assertEquals("AA:BB:CC:DD:EE:FF", transfer.toCoreProfile().hardwareMac)
+        assertEquals(profile.copy(hardwareMac = "AA:BB:CC:DD:EE:FF"), transfer.toCoreProfile())
     }
 
     @Test
@@ -48,4 +49,58 @@ class EasyOpenTransferTest {
         assertFalse(currentJson.contains("\"androidMac\""))
         assertFalse(currentJson.contains("AA:BB:CC:DD:EE:FF"))
     }
+
+    @Test
+    fun portableBackupDoesNotCarryPlatformBindings() {
+        val envelope = EasyOpenBackupEnvelope(
+            version = 1,
+            themeMode = 2,
+            monetEnabled = true,
+            autoConnectRange = 1,
+            customAutoConnectRssi = -80,
+            devices = listOf(EasyOpenTransferProfile.fromCoreProfile(profile)),
+        )
+        val json = Json { encodeDefaults = true; explicitNulls = false }
+        val raw = json.encodeToString(envelope)
+        val decoded = json.decodeFromString<EasyOpenBackupEnvelope>(raw)
+
+        assertFalse(raw.contains("androidMac"))
+        assertFalse(raw.contains("address"))
+        assertEquals(profile, decoded.devices.single().toCoreProfile())
+    }
+
+
+    @Test
+    fun backupCodecCarriesHardwareMacButNotLocalBinding() {
+        val profileWithIdentity = profile.copy(hardwareMac = "E0:E6:6F:3C:A5:B2")
+        val raw = EasyOpenBackupCodec.encode(
+            profiles = listOf(profileWithIdentity),
+            settings = com.juren233.easyopen.data.AppSettings(),
+        )
+        val restored = EasyOpenBackupCodec.decode(raw)
+
+        assertEquals("E0:E6:6F:3C:A5:B2", restored?.profiles?.single()?.hardwareMac)
+        assertFalse(raw.contains("CBPeripheral"))
+        assertFalse(raw.contains("identifier"))
+    }
+
+    @Test
+    fun backupCodecRoundTripsProfilesAndSettings() {
+        val settings = com.juren233.easyopen.data.AppSettings(
+            themeMode = 2,
+            monetEnabled = true,
+            autoUnlockOnAppOpen = true,
+            autoConnectEnabled = false,
+            autoConnectRange = 3,
+            customAutoConnectRssi = -92,
+        )
+        val raw = EasyOpenBackupCodec.encode(listOf(profile), settings)
+        val restored = EasyOpenBackupCodec.decode(raw)
+
+        assertEquals(profile, restored?.profiles?.single())
+        assertEquals(settings, restored?.settings)
+        assertFalse(raw.contains("androidMac"))
+        assertFalse(raw.contains("address"))
+    }
+
 }

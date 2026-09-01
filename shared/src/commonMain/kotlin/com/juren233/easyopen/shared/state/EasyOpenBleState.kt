@@ -29,6 +29,8 @@ data class EasyOpenBleDevice(
     val binding: DeviceBinding,
     val name: String,
     val rssi: Int,
+    /** Hardware identity parsed from Manufacturer Data; not the local binding. */
+    val hardwareMac: String? = null,
 )
 
 /** A locally saved opener entry shown by the platform-neutral pairing UI. */

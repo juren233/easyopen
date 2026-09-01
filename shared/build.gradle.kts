@@ -11,6 +11,7 @@ kotlin {
         namespace = "com.juren233.easyopen.shared"
         compileSdk = 37
         minSdk = 33
+        androidResources.enable = true
         withHostTest {}
     }
 
@@ -43,4 +44,9 @@ kotlin {
             implementation(kotlin("test"))
         }
     }
+}
+
+
+compose.resources {
+    generateResClass = always
 }

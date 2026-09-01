@@ -2,6 +2,7 @@
     <string name="add_opener_title">添加开门器</string>
     <string name="configure_opener_title">设置开门器</string>
     <string name="pair_opener_section">配对开门器</string>
+    <string name="imported_opener_profile">待绑定的导入配置</string>
     <string name="add_another_opener_section">添加另一台开门器</string>
     <string name="search_nearby_openers">搜索附近的开门器</string>
     <string name="pairing_password_in_progress">正在验证密码，请保持开门器在附近</string>

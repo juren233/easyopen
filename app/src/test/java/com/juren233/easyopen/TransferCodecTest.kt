@@ -18,6 +18,7 @@ class TransferCodecTest {
         waitTimeMs = 2200,
         closeTimeMs = 650,
         batteryLevel = 4,
+        hardwareMac = "E0:E6:6F:3C:A5:B2",
     )
 
     @Test
@@ -32,7 +33,14 @@ class TransferCodecTest {
     @Test
     fun backupRoundTripsThemeAndMultipleProfiles() {
         val backup = TransferCodec.encodeBackup(
-            devices = listOf(profile, profile.copy(address = "AA:BB:CC:DD:EE:FF", name = "侧门")),
+            devices = listOf(
+                profile,
+                profile.copy(
+                    address = "AA:BB:CC:DD:EE:FF",
+                    hardwareMac = "AA:BB:CC:DD:EE:FF",
+                    name = "侧门",
+                ),
+            ),
             activeAddress = profile.address,
             themeMode = 2,
             monetEnabled = true,
@@ -68,6 +76,38 @@ class TransferCodecTest {
         assertNotNull(restored)
         assertEquals(profile.address, restored?.activeAddress)
         assertEquals(profile, restored?.devices?.single())
+    }
+
+    @Test
+    fun backupWithoutAndroidBinding_isAcceptedForRebinding() {
+        val backup = """
+            {"version":1,"themeMode":1,"monetEnabled":false,
+            "devices":[{"name":"iOS garage","password":"123456","attribute":0,
+            "openTimeMs":650,"waitTimeMs":2000,"closeTimeMs":600}]}
+        """.trimIndent().replace("\n", "")
+
+        val restored = TransferCodec.decodeBackup(backup)
+
+        assertNotNull(restored)
+        assertEquals("", restored?.activeAddress)
+        assertEquals("iOS garage", restored?.devices?.single()?.name)
+        assertEquals("", restored?.devices?.single()?.address)
+    }
+
+    @Test
+    fun backupWithoutAndroidBinding_preservesDuplicateProfiles() {
+        val backup = """
+            {"version":1,"themeMode":1,"monetEnabled":false,
+            "devices":[
+            {"name":"same","password":"123456","attribute":0,"openTimeMs":650,"waitTimeMs":2000,"closeTimeMs":600},
+            {"name":"same","password":"123456","attribute":0,"openTimeMs":650,"waitTimeMs":2000,"closeTimeMs":600}
+            ]}
+        """.trimIndent().replace("\n", "")
+
+        val restored = TransferCodec.decodeBackup(backup)
+
+        assertNotNull(restored)
+        assertEquals(2, restored?.devices?.size)
     }
 
 }

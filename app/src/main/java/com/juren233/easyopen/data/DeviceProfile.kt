@@ -15,4 +15,6 @@ data class DeviceProfile(
     val waitTimeMs: Int = 2000,
     val closeTimeMs: Int = 600,
     val batteryLevel: Int? = null,
+    /** MAC mirrored in Manufacturer Data, used for cross-platform matching. */
+    val hardwareMac: String? = null,
 )

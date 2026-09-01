@@ -19,6 +19,7 @@ import android.os.Looper
 import androidx.core.content.ContextCompat
 import com.juren233.easyopen.BuildConfig
 import com.juren233.easyopen.shared.platform.EasyOpenBleUuids
+import java.util.ArrayDeque
 import java.util.UUID
 
 internal sealed interface BleGattFailure {
@@ -54,6 +55,8 @@ internal class BleGattSession(
         private const val WRITE_RETRY_DELAY_MS = 200L
         private const val GATT_CONNECTION_TIMEOUT_MS = 8_000L
         private const val RELEASE_WATCHDOG_MS = 1_500L
+        private const val IDENTITY_READ_TIMEOUT_MS = 1_500L
+        private const val MAX_IDENTITY_READS = 32
         val SERVICE_UUID: UUID = UUID.fromString(EasyOpenBleUuids.SERVICE)
         val WRITE_UUID: UUID = UUID.fromString(EasyOpenBleUuids.WRITE)
         val NOTIFY_UUID: UUID = UUID.fromString(EasyOpenBleUuids.NOTIFY)
@@ -81,6 +84,10 @@ internal class BleGattSession(
     private var descriptorRetryCount = 0
     private var releaseReason = "unknown"
     private var waitForFreshAdvertisementAfterRelease = true
+    private val identityReadQueue = ArrayDeque<BluetoothGattCharacteristic>()
+    private var identityReadInFlight: BluetoothGattCharacteristic? = null
+    private var identityReadTimeout: Runnable? = null
+    private var readyNotified = false
 
     val address: String?
         get() = currentAddress
@@ -106,6 +113,8 @@ internal class BleGattSession(
         }
         currentAddress = normalizedAddress
         currentPurpose = purpose
+        cancelIdentityDiagnostics()
+        readyNotified = false
         diagnostics.begin(normalizedAddress, purpose)
         diagnostics.log("connect_gatt_start")
         val remote = runCatching { adapter?.getRemoteDevice(normalizedAddress) }.getOrNull()
@@ -233,6 +242,8 @@ internal class BleGattSession(
         cancelConnectionTimeout()
         cancelWriteRetry()
         cancelDescriptorRetry()
+        cancelIdentityDiagnostics()
+        readyNotified = false
         releaseWatchdog = null
         waitForFreshAdvertisementAfterRelease = true
     }
@@ -258,6 +269,8 @@ internal class BleGattSession(
         cancelConnectionTimeout()
         cancelWriteRetry()
         cancelDescriptorRetry()
+        cancelIdentityDiagnostics()
+        readyNotified = false
         gatt?.let { runCatching { it.close() } }
         gatt = null
         writeCharacteristic = null
@@ -361,9 +374,71 @@ internal class BleGattSession(
     }
 
     private fun markReady() {
+        if (readyNotified || identityReadInFlight != null) return
+        if (BuildConfig.DEBUG && identityReadQueue.isNotEmpty()) {
+            diagnostics.log(
+                "identity_reads_start",
+                "count=${identityReadQueue.size}",
+            )
+            readNextIdentityCharacteristic()
+            return
+        }
+        finishReady()
+    }
+
+    private fun finishReady() {
+        if (readyNotified) return
+        readyNotified = true
         retryPolicy.markReady()
         diagnostics.log("ready")
         listener.onLinkReady(currentAddress.orEmpty(), currentPurpose)
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun readNextIdentityCharacteristic() {
+        if (!BuildConfig.DEBUG) {
+            finishReady()
+            return
+        }
+        val connection = gatt
+        val next = if (identityReadQueue.isEmpty()) null else identityReadQueue.removeFirst()
+        if (connection == null || next == null || retryPolicy.phase == BleConnectionPhase.RELEASING) {
+            finishReady()
+            return
+        }
+        identityReadInFlight = next
+        BleIdentityDiagnostics.logReadStart(currentAddress.orEmpty(), next)
+        val accepted = runCatching { connection.readCharacteristic(next) }.getOrDefault(false)
+        if (!accepted) {
+            BleIdentityDiagnostics.logReadSkipped(
+                currentAddress.orEmpty(),
+                next,
+                "readCharacteristic_returned_false",
+            )
+            identityReadInFlight = null
+            readNextIdentityCharacteristic()
+            return
+        }
+        identityReadTimeout?.let(mainHandler::removeCallbacks)
+        identityReadTimeout = Runnable {
+            identityReadTimeout = null
+            if (this@BleGattSession.gatt === connection && identityReadInFlight === next) {
+                BleIdentityDiagnostics.logReadSkipped(
+                    currentAddress.orEmpty(),
+                    next,
+                    "callback_timeout_${IDENTITY_READ_TIMEOUT_MS}ms",
+                )
+                identityReadInFlight = null
+                readNextIdentityCharacteristic()
+            }
+        }.also { mainHandler.postDelayed(it, IDENTITY_READ_TIMEOUT_MS) }
+    }
+
+    private fun cancelIdentityDiagnostics() {
+        identityReadTimeout?.let(mainHandler::removeCallbacks)
+        identityReadTimeout = null
+        identityReadQueue.clear()
+        identityReadInFlight = null
     }
 
     @SuppressLint("MissingPermission")
@@ -372,6 +447,17 @@ internal class BleGattSession(
         if (status != BluetoothGatt.GATT_SUCCESS) {
             handleFailure(BleGattFailure.ServicesFailed(status))
             return
+        }
+        identityReadQueue.clear()
+        if (BuildConfig.DEBUG) {
+            val readable = BleIdentityDiagnostics.logGattTable(currentAddress.orEmpty(), gatt)
+            identityReadQueue.addAll(readable.take(MAX_IDENTITY_READS))
+            if (readable.size > MAX_IDENTITY_READS) {
+                diagnostics.log(
+                    "identity_reads_capped",
+                    "readable=${readable.size} cap=$MAX_IDENTITY_READS",
+                )
+            }
         }
         val service = gatt.getService(SERVICE_UUID)
         writeCharacteristic = service?.getCharacteristic(WRITE_UUID)
@@ -472,6 +558,33 @@ internal class BleGattSession(
                 cancelDescriptorRetry()
                 markReady()
             }
+        }
+
+        @SuppressLint("MissingPermission")
+        override fun onCharacteristicRead(
+            gatt: BluetoothGatt,
+            characteristic: BluetoothGattCharacteristic,
+            value: ByteArray,
+            status: Int,
+        ) {
+            val isCurrent = this@BleGattSession.gatt === gatt
+            diagnostics.logCallback(
+                "identity_read_callback",
+                gatt,
+                isCurrent,
+                "uuid=${characteristic.uuid} status=$status length=${value.size}",
+            )
+            if (!isCurrent || identityReadInFlight?.uuid != characteristic.uuid) return
+            identityReadTimeout?.let(mainHandler::removeCallbacks)
+            identityReadTimeout = null
+            BleIdentityDiagnostics.logReadResult(
+                currentAddress.orEmpty(),
+                characteristic,
+                value,
+                status,
+            )
+            identityReadInFlight = null
+            readNextIdentityCharacteristic()
         }
 
         override fun onCharacteristicChanged(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic) {

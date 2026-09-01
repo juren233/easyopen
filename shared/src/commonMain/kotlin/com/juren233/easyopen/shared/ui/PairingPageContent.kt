@@ -54,6 +54,7 @@ import easyopen.shared.generated.resources.no_opener_found_summary
 import easyopen.shared.generated.resources.open_bluetooth_settings
 import easyopen.shared.generated.resources.pair_opener_section
 import easyopen.shared.generated.resources.pairing_flow_page_transition
+import easyopen.shared.generated.resources.imported_opener_profile
 import easyopen.shared.generated.resources.pairing_password_in_progress
 import easyopen.shared.generated.resources.password_dialog_description
 import easyopen.shared.generated.resources.password_dialog_title
@@ -107,12 +108,13 @@ fun PairingPageContent(
     onPairRequested: (DeviceBinding, CoreDeviceProfile) -> Unit,
     onPaired: (DeviceBinding, CoreDeviceProfile) -> Unit,
     pairedDevices: List<EasyOpenSavedDevice> = emptyList(),
+    initialProfile: CoreDeviceProfile? = null,
     onSelectPairedDevice: (EasyOpenSavedDevice) -> Unit = {},
 ) {
     val listState = rememberLazyListState()
     val scrollBehavior = MiuixScrollBehavior()
     var selectedDevice by remember { mutableStateOf<EasyOpenBleDevice?>(null) }
-    var password by rememberSaveable { mutableStateOf("") }
+    var password by rememberSaveable(initialProfile?.password) { mutableStateOf(initialProfile?.password.orEmpty()) }
     var pairAttempted by rememberSaveable { mutableStateOf(false) }
     var showSettingsPage by rememberSaveable { mutableStateOf(false) }
     var showDiscardSettingsDialog by rememberSaveable { mutableStateOf(false) }
@@ -121,6 +123,7 @@ fun PairingPageContent(
     var openTime by rememberSaveable { mutableStateOf("650") }
     var waitTime by rememberSaveable { mutableStateOf("2000") }
     var closeTime by rememberSaveable { mutableStateOf("600") }
+    var autoMatchDismissed by rememberSaveable(initialProfile?.hardwareMac) { mutableStateOf(false) }
 
     val pairingInProgress = snapshot.operation == EasyOpenBleOperation.PAIRING
     val errorMessage = snapshot.message.takeIf { snapshot.operation == EasyOpenBleOperation.ERROR }
@@ -132,15 +135,30 @@ fun PairingPageContent(
     DisposableEffect(Unit) {
         onDispose(onStopScan)
     }
+    LaunchedEffect(initialProfile?.hardwareMac, snapshot.discoveredDevices) {
+        val expectedHardwareMac = initialProfile?.hardwareMac
+            ?.trim()
+            ?.takeIf(String::isNotBlank)
+            ?: return@LaunchedEffect
+        if (autoMatchDismissed || selectedDevice != null) return@LaunchedEffect
+        val matchedDevice = snapshot.discoveredDevices.firstOrNull { discovered ->
+            discovered.hardwareMac.equals(expectedHardwareMac, ignoreCase = true)
+        } ?: return@LaunchedEffect
+        selectedDevice = matchedDevice
+        password = initialProfile.password
+        pairAttempted = false
+    }
+
     LaunchedEffect(snapshot.operation, selectedBinding, showSettingsPage) {
         if (snapshot.operation != EasyOpenBleOperation.PAIRED || showSettingsPage) return@LaunchedEffect
         val device = selectedDevice ?: return@LaunchedEffect
         if (snapshot.activeBinding != device.binding) return@LaunchedEffect
-        customName = device.name.trim().ifBlank { "我的开门器" }
-        attribute = 0
-        openTime = "650"
-        waitTime = "2000"
-        closeTime = "600"
+        val imported = initialProfile?.normalized()
+        customName = imported?.name ?: device.name.trim().ifBlank { "我的开门器" }
+        attribute = imported?.attribute ?: 0
+        openTime = (imported?.openTimeMs ?: 650).toString()
+        waitTime = (imported?.waitTimeMs ?: 2_000).toString()
+        closeTime = (imported?.closeTimeMs ?: 600).toString()
         showSettingsPage = true
     }
 
@@ -163,6 +181,7 @@ fun PairingPageContent(
                 openTimeMs = openTime.toIntOrNull()?.coerceIn(0, 60_000) ?: 650,
                 waitTimeMs = waitTime.toIntOrNull()?.coerceIn(0, 60_000) ?: 2_000,
                 closeTimeMs = closeTime.toIntOrNull()?.coerceIn(0, 60_000) ?: 600,
+                hardwareMac = device.hardwareMac ?: initialProfile?.hardwareMac,
             ),
         )
     }
@@ -247,10 +266,12 @@ fun PairingPageContent(
                     onOpenBluetoothSettings = onOpenBluetoothSettings,
                     onStartScan = onStartScan,
                     pairedDevices = pairedDevices,
+                    initialProfile = initialProfile,
                     onSelectPairedDevice = onSelectPairedDevice,
                     onSelectDevice = { device ->
+                        autoMatchDismissed = true
                         selectedDevice = device
-                        password = ""
+                        password = initialProfile?.password.orEmpty()
                         pairAttempted = false
                     },
                 )
@@ -285,7 +306,10 @@ fun PairingPageContent(
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                         MiuixTextButton(
                             text = stringResource(Res.string.cancel),
-                            onClick = { selectedDevice = null },
+                            onClick = {
+                            autoMatchDismissed = true
+                            selectedDevice = null
+                        },
                             enabled = !pairingInProgress,
                             modifier = Modifier.weight(1f),
                         )
@@ -352,6 +376,7 @@ private fun PairingDiscoveryContent(
     onOpenBluetoothSettings: () -> Unit,
     onStartScan: () -> Unit,
     pairedDevices: List<EasyOpenSavedDevice>,
+    initialProfile: CoreDeviceProfile?,
     onSelectPairedDevice: (EasyOpenSavedDevice) -> Unit,
     onSelectDevice: (EasyOpenBleDevice) -> Unit,
 ) {
@@ -385,6 +410,21 @@ private fun PairingDiscoveryContent(
                             )
                         }
                     }
+                }
+            }
+        }
+        initialProfile?.let { importedProfile ->
+            item {
+                Card(
+                    modifier = Modifier
+                        .padding(horizontal = 12.dp)
+                        .padding(bottom = 12.dp)
+                        .fillMaxWidth(),
+                ) {
+                    BasicComponent(
+                        title = stringResource(Res.string.imported_opener_profile),
+                        summary = importedProfile.name,
+                    )
                 }
             }
         }

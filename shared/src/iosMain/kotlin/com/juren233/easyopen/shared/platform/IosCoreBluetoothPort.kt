@@ -2,6 +2,7 @@ package com.juren233.easyopen.shared.platform
 
 import com.juren233.easyopen.shared.model.CoreDeviceProfile
 import com.juren233.easyopen.shared.model.DeviceBinding
+import com.juren233.easyopen.shared.protocol.EasyOpenAdvertisementParser
 import com.juren233.easyopen.shared.protocol.UnlockProtocol
 import com.juren233.easyopen.shared.state.EasyOpenBleDevice
 import com.juren233.easyopen.shared.state.EasyOpenBleOperation
@@ -20,6 +21,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import platform.CoreBluetooth.CBCentralManager
+import platform.CoreBluetooth.CBAdvertisementDataManufacturerDataKey
 import platform.CoreBluetooth.CBCentralManagerDelegateProtocol
 import platform.CoreBluetooth.CBCharacteristic
 import platform.CoreBluetooth.CBCharacteristicPropertyIndicate
@@ -58,7 +60,7 @@ class IosCoreBluetoothPort(
     serviceUuid: String = EasyOpenBleUuids.SERVICE,
     writeCharacteristicUuid: String = EasyOpenBleUuids.WRITE,
     notifyCharacteristicUuid: String = EasyOpenBleUuids.NOTIFY,
-    onPeripheralDiscovered: ((DeviceBinding.IosPeripheral, String?, Int) -> Unit)? = null,
+    onPeripheralDiscovered: ((DeviceBinding.IosPeripheral, String?, Int, String?) -> Unit)? = null,
     onConnectionChanged: ((DeviceBinding.IosPeripheral, Boolean, String?) -> Unit)? = null,
     onTransportReady: ((DeviceBinding.IosPeripheral) -> Unit)? = null,
 ) : EasyOpenBlePort {
@@ -74,9 +76,9 @@ class IosCoreBluetoothPort(
             publishConnectionChanged(binding, connected, message)
             onConnectionChanged?.invoke(binding, connected, message)
         },
-        onPeripheralDiscovered = { binding, name, rssi ->
-            publishDiscovered(binding, name, rssi)
-            onPeripheralDiscovered?.invoke(binding, name, rssi)
+        onPeripheralDiscovered = { binding, name, rssi, hardwareMac ->
+            publishDiscovered(binding, name, rssi, hardwareMac)
+            onPeripheralDiscovered?.invoke(binding, name, rssi, hardwareMac)
         },
         onTransportReady = { binding ->
             publishTransportReady(binding)
@@ -164,11 +166,20 @@ class IosCoreBluetoothPort(
         delegate.unlock(binding, profile)
     }
 
-    internal fun publishDiscovered(binding: DeviceBinding.IosPeripheral, name: String?, rssi: Int) {
+    internal fun publishDiscovered(
+        binding: DeviceBinding.IosPeripheral,
+        name: String?,
+        rssi: Int,
+        hardwareMac: String?,
+    ) {
+        val previousHardwareMac = _state.value.discoveredDevices
+            .firstOrNull { it.binding == binding }
+            ?.hardwareMac
         val discovered = EasyOpenBleDevice(
             binding = binding,
             name = name?.trim().orEmpty().ifBlank { "YILA 开门器" },
             rssi = rssi,
+            hardwareMac = hardwareMac ?: previousHardwareMac,
         )
         _state.value = _state.value.copy(
             connectionStatus = EasyOpenConnectionStatus.DISCOVERED,
@@ -245,7 +256,7 @@ private class IosCoreBluetoothDelegate(
     private val serviceUuid: String,
     private val writeCharacteristicUuid: String,
     private val notifyCharacteristicUuid: String,
-    private val onPeripheralDiscovered: ((DeviceBinding.IosPeripheral, String?, Int) -> Unit)?,
+    private val onPeripheralDiscovered: ((DeviceBinding.IosPeripheral, String?, Int, String?) -> Unit)?,
     private val onConnectionChanged: ((DeviceBinding.IosPeripheral, Boolean, String?) -> Unit)?,
     private val onTransportReady: ((DeviceBinding.IosPeripheral) -> Unit)?,
     private val onBluetoothAvailabilityChanged: ((Boolean) -> Unit)?,
@@ -286,7 +297,7 @@ private class IosCoreBluetoothDelegate(
         scanRequested = true
         if (!isPoweredOn()) return
         centralManager.scanForPeripheralsWithServices(
-            serviceUUIDs = listOf(scanService),
+            serviceUUIDs = null,
             options = null,
         )
     }
@@ -369,7 +380,7 @@ private class IosCoreBluetoothDelegate(
             central.stopScan()
         } else if (scanRequested) {
             central.scanForPeripheralsWithServices(
-                serviceUUIDs = listOf(scanService),
+                serviceUUIDs = null,
                 options = null,
             )
         }
@@ -381,12 +392,22 @@ private class IosCoreBluetoothDelegate(
         advertisementData: Map<Any?, *>,
         RSSI: NSNumber,
     ) {
+        val manufacturerData = (advertisementData[CBAdvertisementDataManufacturerDataKey] as? NSData)
+            ?.toByteArray()
+        val identity = manufacturerData
+            ?.let(EasyOpenAdvertisementParser::parseIosManufacturerData)
+        val name = didDiscoverPeripheral.name.orEmpty()
+        val isYiLa = name.contains("YILA", ignoreCase = true) &&
+            !name.contains("REMOTE", ignoreCase = true)
+        if (!isYiLa && identity == null) return
+
         val identifier = didDiscoverPeripheral.identifier.UUIDString
         peripherals[identifier] = didDiscoverPeripheral
         onPeripheralDiscovered?.invoke(
             DeviceBinding.IosPeripheral(identifier),
             didDiscoverPeripheral.name,
             RSSI.intValue,
+            identity?.hardwareMac,
         )
     }
 
@@ -734,4 +755,7 @@ private class IosCoreBluetoothDelegate(
         Pairing,
         Unlock,
     }
+
+    private fun NSData.toByteArray(): ByteArray =
+        bytes?.reinterpret<ByteVar>()?.readBytes(length.toInt()) ?: ByteArray(0)
 }
