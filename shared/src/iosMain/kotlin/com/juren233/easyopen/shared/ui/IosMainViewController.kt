@@ -8,6 +8,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.window.ComposeUIViewController
 import com.juren233.easyopen.data.AppSettings
 import com.juren233.easyopen.shared.model.CoreDeviceProfile
@@ -25,8 +26,20 @@ import com.juren233.easyopen.shared.state.displayIdentifier
 import platform.Foundation.NSUserDefaults
 import platform.UIKit.UIViewController
 
-/** iOS host entry point; the Swift shell embeds the shared Compose UI here. */
-fun MainViewController(): UIViewController = ComposeUIViewController {
+/**
+ * iOS host entry point; the Swift shell embeds the shared Compose UI here.
+ *
+ * Keep rendering on the main thread for now. The first device reports from
+ * iOS 27.0 showed an uncaught Kotlin exception on Compose's
+ * `com.apple.root.utility-qos` render worker followed by SIGABRT during the
+ * first frame. Disabling the separate render thread is the documented Compose
+ * fallback for parallel-rendering issues; we can re-enable it after a clean
+ * device smoke test on the target iOS versions.
+ */
+@OptIn(ExperimentalComposeUiApi::class)
+fun MainViewController(): UIViewController = ComposeUIViewController(
+    configure = { parallelRendering = false },
+) {
     IosRootContent()
 }
 

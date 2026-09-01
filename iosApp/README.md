@@ -7,6 +7,7 @@
 - `shared` 负责生成 `EasyOpenShared.framework`。
 - `iosApp/EasyOpen.xcodeproj` 负责生成 iOS App。
 - `.github/scripts/build-unsigned-ipa.sh` 通过 `xcodebuild archive CODE_SIGNING_ALLOWED=NO` 归档；随后显式执行 `:shared:syncComposeResourcesForIos`，把 `compose-resources/` 同步到归档 App，再手动打包 `Payload/*.app` 为未签名 `.ipa`。
+- iOS 宿主当前显式关闭 Compose 的 `parallelRendering`，让首帧渲染回到主线程；这是针对 iOS 27.0 真机首帧在 Compose 独立渲染线程上触发 `SIGABRT` 的稳定性保护，待真机回归通过后再评估恢复并行渲染。
 - Linux 可以编译 Kotlin/Native KLIB，但不能替代 macOS/Xcode 的链接、资源归档、签名和真机验证。
 - 2026-08-31 的 `iOS IPA Validation` run `33417601264` 在 `macos-15` / Xcode 16.4 最终链接阶段失败；2026-09-01 的 `iOS IPA Validation` run `33462150647` 已在 `macos-26` 成功完成 archive、未签名 IPA 打包和产物检查。
 

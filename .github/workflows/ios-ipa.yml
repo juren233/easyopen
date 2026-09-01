@@ -114,3 +114,13 @@ jobs:
             EasyOpen-iOS-build-metadata.txt
           if-no-files-found: error
           retention-days: 14
+
+
+      - name: 上传 dSYM 诊断符号 Upload dSYM Symbols
+        if: steps.gate.outputs.skip != 'true' && steps.build.outputs.dsym_name != ''
+        uses: actions/upload-artifact@v7
+        with:
+          name: EasyOpen-iOS-v${{ steps.gate.outputs.full_name }}-${{ steps.gate.outputs.code }}-dSYM
+          path: ${{ steps.build.outputs.dsym_name }}
+          if-no-files-found: error
+          retention-days: 14

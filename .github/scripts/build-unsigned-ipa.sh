@@ -20,6 +20,8 @@ output_name="${OUTPUT_NAME:-EasyOpen-iOS-v${full_name}-${version_code}.ipa}"
 output_path="$workspace/$output_name"
 inspection_name="${output_name%.ipa}-inspection.txt"
 inspection_path="$workspace/$inspection_name"
+dsym_name="${output_name%.ipa}.dSYM.zip"
+dsym_path_output="$workspace/$dsym_name"
 derived_data_path="${RUNNER_TEMP:-$workspace/.tmp}/easyopen-derived-data"
 
 mkdir -p "$archive_root" "$payload_dir"
@@ -47,7 +49,9 @@ xcodebuild \
   CODE_SIGNING_REQUIRED=NO \
   CODE_SIGN_IDENTITY='' \
   MARKETING_VERSION="$ios_version" \
-  CURRENT_PROJECT_VERSION="$version_code"
+  CURRENT_PROJECT_VERSION="$version_code" \
+  DEBUG_INFORMATION_FORMAT=dwarf-with-dsym \
+  GCC_GENERATE_DEBUGGING_SYMBOLS=YES
 archive_seconds=$((SECONDS - archive_started))
 package_started=$SECONDS
 printf '%s\n' "Timing Xcode archive: ${archive_seconds}s"
@@ -55,6 +59,17 @@ printf '%s\n' "Timing Xcode archive: ${archive_seconds}s"
 app_path="$(find "$archive_path/Products/Applications" -maxdepth 1 -type d -name '*.app' -print -quit)"
 test -n "$app_path"
 test -d "$app_path"
+
+dsym_path="$(find "$archive_path/dSYMs" -maxdepth 1 -type d -name '*.dSYM' -print -quit 2>/dev/null || true)"
+dsym_uuid=""
+if [[ -n "$dsym_path" && -d "$dsym_path" ]]; then
+  /usr/bin/ditto -c -k --sequesterRsrc --keepParent "$dsym_path" "$dsym_path_output"
+  test -s "$dsym_path_output"
+  dsym_uuid="$(/usr/bin/dwarfdump --uuid "$dsym_path" 2>/dev/null || true)"
+else
+  printf '%s\n' "Warning: Xcode archive did not produce a dSYM; IPA build will continue without symbol artifact." >&2
+  dsym_name=""
+fi
 
 # Compose Multiplatform resources are not part of a static Kotlin/Native
 # framework's executable. The normal Xcode integration runs
@@ -88,6 +103,8 @@ test "$actual_version_code" = "$version_code"
 app_executable_name="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$app_path/Info.plist")"
 app_executable="$app_path/$app_executable_name"
 test -f "$app_executable"
+app_uuid="$(/usr/bin/dwarfdump --uuid "$app_executable" 2>/dev/null || true)"
+test -n "$app_uuid"
 app_architectures="$(/usr/bin/lipo -archs "$app_executable")"
 framework_architectures="$(/usr/bin/lipo -archs "$framework_path/EasyOpenShared")"
 [[ " $app_architectures " == *" arm64 "* ]]
@@ -104,6 +121,9 @@ fi
   printf 'ios_bundle_version=%s\n' "$actual_version_code"
   printf 'app_architectures=%s\n' "$app_architectures"
   printf 'framework_architectures=%s\n' "$framework_architectures"
+  printf 'app_uuid=%s\n' "$app_uuid"
+  printf 'dsym_uuid=%s\n' "$dsym_uuid"
+  printf 'dsym_name=%s\n' "$dsym_name"
   printf 'unsigned=true\n'
   printf 'compose_resources_dir=%s\n' "${compose_resources_dir#"$app_path/"}"
   printf 'compose_resource_files=%s\n' "$compose_resource_files"
@@ -130,4 +150,5 @@ if [[ -n "${GITHUB_OUTPUT:-}" ]]; then
   printf 'ipa_path=%s\n' "$output_path" >> "$GITHUB_OUTPUT"
   printf 'ipa_name=%s\n' "$output_name" >> "$GITHUB_OUTPUT"
   printf 'inspection_name=%s\n' "$inspection_name" >> "$GITHUB_OUTPUT"
+  printf 'dsym_name=%s\n' "$dsym_name" >> "$GITHUB_OUTPUT"
 fi

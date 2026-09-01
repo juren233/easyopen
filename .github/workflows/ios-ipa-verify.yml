@@ -106,3 +106,13 @@ jobs:
             EasyOpen-iOS-validation-metadata.txt
           if-no-files-found: error
           retention-days: 7
+
+
+      - name: 上传验证 dSYM 诊断符号 Upload Validation dSYM Symbols
+        if: steps.build.outputs.dsym_name != ''
+        uses: actions/upload-artifact@v7
+        with:
+          name: EasyOpen-iOS-validation-${{ github.sha }}-dSYM
+          path: ${{ steps.build.outputs.dsym_name }}
+          if-no-files-found: error
+          retention-days: 7
