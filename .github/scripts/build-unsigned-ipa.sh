@@ -97,8 +97,10 @@ test "$compose_resource_files" -gt 0
 
 actual_ios_version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app_path/Info.plist")"
 actual_version_code="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$app_path/Info.plist")"
+disable_minimum_frame_duration="$(/usr/libexec/PlistBuddy -c 'Print :CADisableMinimumFrameDurationOnPhone' "$app_path/Info.plist")"
 test "$actual_ios_version" = "$ios_version"
 test "$actual_version_code" = "$version_code"
+test "$disable_minimum_frame_duration" = "true"
 
 app_executable_name="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$app_path/Info.plist")"
 app_executable="$app_path/$app_executable_name"
@@ -119,6 +121,7 @@ fi
   printf 'android_display_version=%s\n' "$full_name"
   printf 'ios_bundle_short_version=%s\n' "$actual_ios_version"
   printf 'ios_bundle_version=%s\n' "$actual_version_code"
+  printf 'CADisableMinimumFrameDurationOnPhone=%s\n' "$disable_minimum_frame_duration"
   printf 'app_architectures=%s\n' "$app_architectures"
   printf 'framework_architectures=%s\n' "$framework_architectures"
   printf 'app_uuid=%s\n' "$app_uuid"
