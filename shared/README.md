@@ -15,7 +15,7 @@
 - `commonMain/state` 保存 Home/BLE 快照，不持有 Android `BluetoothDevice`、iOS `CBPeripheral` 或 Context。
 - Android `AndroidBlePort` 将现有 `BleDoorController` 的 StateFlow 转成 shared 快照。
 - `shared/platform/EasyOpenBleUuids.kt` 维护 Android/iOS 共同的 Nordic UART-style UUID 合约。
-- iOS `IosCoreBluetoothPort` 已有扫描、连接、服务/特征发现、通知配置、配对/开门命令写入、通知响应分类、13 秒超时和一次有限重试；真机时序仍待确认。
+- iOS `IosCoreBluetoothPort` 已有扫描、连接、服务/特征发现、通知配置、配对/开门命令写入、通知响应分类、连接/服务发现超时、13 秒命令超时和一次有限重试；真机时序仍待确认。
 - `commonMain/state` 提供 `EasyOpenSavedDevice` 及活动设备/替换规则，iOS 宿主使用它实现多设备切换。
 - `commonMain/transfer` 的 `EasyOpenTransferProfile` 将 `androidMac` 定义为可选字段；iOS 不应写入 `CBPeripheral.identifier`。Android 备份已迁移到 `androidMac` 新字段并兼容旧 `address`，Android 紧凑二维码仍暂时保留旧格式。
 

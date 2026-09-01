@@ -38,7 +38,12 @@ internal object IosDeviceStore {
             .orEmpty()
             .mapNotNull(::toSavedDevice)
             .distinctBy { it.iosIdentifier().lowercase() }
-        if (stored.isNotEmpty()) return stored
+        if (stored.isNotEmpty()) {
+            // Re-serialize once so a successful legacy migration removes the
+            // plaintext password from NSUserDefaults immediately.
+            save(defaults, stored, activeIdentifier(defaults, stored))
+            return stored
+        }
 
         val legacyBinding = defaults.stringForKey(LEGACY_BINDING_KEY)
             ?.trim()
@@ -70,10 +75,17 @@ internal object IosDeviceStore {
         defaults.setObject(
             json.encodeToString(
                 normalized.map { device ->
-                    StoredDevice(
-                        identifier = device.iosIdentifier(),
-                        name = device.profile.name,
+                    val identifier = device.iosIdentifier()
+                    val keychainSaved = IosKeychainStore.writePassword(
+                        identifier = identifier,
                         password = device.profile.password,
+                    )
+                    StoredDevice(
+                        identifier = identifier,
+                        name = device.profile.name,
+                        // Keep the legacy field only if Keychain rejects the write;
+                        // this avoids silently losing an opener during migration.
+                        password = if (keychainSaved) "" else device.profile.password,
                         attribute = device.profile.attribute,
                         openTimeMs = device.profile.openTimeMs,
                         waitTimeMs = device.profile.waitTimeMs,
@@ -98,11 +110,16 @@ internal object IosDeviceStore {
     private fun toSavedDevice(stored: StoredDevice): EasyOpenSavedDevice? {
         val identifier = stored.identifier.trim()
         if (identifier.isBlank()) return null
+        val keychainPassword = IosKeychainStore.readPassword(identifier)
+        if (keychainPassword == null && stored.password.isNotBlank()) {
+            // One-time migration from the old NSUserDefaults payload.
+            IosKeychainStore.writePassword(identifier, stored.password)
+        }
         return EasyOpenSavedDevice(
             binding = DeviceBinding.IosPeripheral(identifier),
             profile = CoreDeviceProfile(
                 name = stored.name,
-                password = stored.password,
+                password = keychainPassword ?: stored.password,
                 attribute = stored.attribute,
                 openTimeMs = stored.openTimeMs,
                 waitTimeMs = stored.waitTimeMs,

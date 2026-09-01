@@ -206,7 +206,10 @@ class IosCoreBluetoothPort(
                 EasyOpenBleOperation.ERROR
             },
             connectionStatus = if (connected) {
-                EasyOpenConnectionStatus.CONNECTED
+                // CoreBluetooth connected only means the link is up; command
+                // writes remain blocked until service/characteristic discovery
+                // and notification enablement report transport ready.
+                EasyOpenConnectionStatus.CONNECTING
             } else {
                 EasyOpenConnectionStatus.NOT_FOUND
             },
@@ -232,6 +235,8 @@ class IosCoreBluetoothPort(
     }
 }
 
+private const val IOS_CONNECT_TIMEOUT_SECONDS = 15L
+private const val IOS_TRANSPORT_TIMEOUT_SECONDS = 15L
 private const val IOS_RESPONSE_TIMEOUT_SECONDS = 13L
 private const val IOS_MAX_COMMAND_ATTEMPTS = 2
 
@@ -259,8 +264,12 @@ private class IosCoreBluetoothDelegate(
     private val readyIdentifiers = mutableSetOf<String>()
     private val awaitingResponses = mutableMapOf<String, AwaitingResponse>()
     private val commandAttempts = mutableMapOf<String, Int>()
+    private val pendingConnections = mutableMapOf<String, Long>()
+    private val pendingTransports = mutableMapOf<String, Long>()
+    private val ignoredDisconnects = mutableSetOf<String>()
     private var scanRequested = false
     private var commandToken = 0L
+    private var lifecycleToken = 0L
 
     private val scanService: CBUUID
         get() = CBUUID.UUIDWithString(serviceUuid)
@@ -302,7 +311,7 @@ private class IosCoreBluetoothDelegate(
         pendingCommands.remove(identifier)
         awaitingResponses.remove(identifier)
         commandAttempts.remove(identifier)
-        centralManager.connectPeripheral(peripheral, options = null)
+        beginConnection(identifier, peripheral)
     }
 
     fun pair(binding: DeviceBinding, profile: CoreDeviceProfile) {
@@ -326,7 +335,7 @@ private class IosCoreBluetoothDelegate(
             )
             return
         }
-        centralManager.connectPeripheral(peripheral, options = null)
+        beginConnection(identifier, peripheral)
     }
 
     fun unlock(binding: DeviceBinding, profile: CoreDeviceProfile) {
@@ -350,7 +359,7 @@ private class IosCoreBluetoothDelegate(
             )
             return
         }
-        centralManager.connectPeripheral(peripheral, options = null)
+        beginConnection(identifier, peripheral)
     }
 
     override fun centralManagerDidUpdateState(central: CBCentralManager) {
@@ -386,8 +395,14 @@ private class IosCoreBluetoothDelegate(
         didConnectPeripheral: CBPeripheral,
     ) {
         val binding = DeviceBinding.IosPeripheral(didConnectPeripheral.identifier.UUIDString)
+        val identifier = binding.identifier
+        pendingConnections.remove(identifier)
+        pendingTransports[identifier] = ++lifecycleToken
         didConnectPeripheral.delegate = this
-        peripheralFor(binding).discoverServices(listOf(scanService))
+        didConnectPeripheral.discoverServices(listOf(scanService))
+        scheduleTransportTimeout(identifier, pendingTransports.getValue(identifier))
+        // A connected peripheral is not command-ready until the service,
+        // characteristics and notifications have all completed.
         onConnectionChanged?.invoke(binding, true, null)
     }
 
@@ -398,8 +413,12 @@ private class IosCoreBluetoothDelegate(
         error: NSError?,
     ) {
         val identifier = didFailToConnectPeripheral.identifier.UUIDString
+        val ignored = ignoredDisconnects.remove(identifier)
+        pendingConnections.remove(identifier)
+        pendingTransports.remove(identifier)
         pendingCommands.remove(identifier)
         awaitingResponses.remove(identifier)
+        if (ignored) return
         onConnectionChanged?.invoke(
             DeviceBinding.IosPeripheral(identifier),
             false,
@@ -414,6 +433,9 @@ private class IosCoreBluetoothDelegate(
         error: NSError?,
     ) {
         val identifier = didDisconnectPeripheral.identifier.UUIDString
+        val ignored = ignoredDisconnects.remove(identifier)
+        pendingConnections.remove(identifier)
+        pendingTransports.remove(identifier)
         pendingProfiles.remove(identifier)
         pendingCommands.remove(identifier)
         awaitingResponses.remove(identifier)
@@ -422,6 +444,7 @@ private class IosCoreBluetoothDelegate(
         notifyCharacteristics.remove(identifier)
         notifyEnabled.remove(identifier)
         readyIdentifiers.remove(identifier)
+        if (ignored) return
         onConnectionChanged?.invoke(
             DeviceBinding.IosPeripheral(identifier),
             false,
@@ -434,6 +457,7 @@ private class IosCoreBluetoothDelegate(
         didDiscoverServices: NSError?,
     ) {
         if (didDiscoverServices != null) {
+            pendingTransports.remove(peripheral.identifier.UUIDString)
             onConnectionChanged?.invoke(
                 bindingFor(peripheral),
                 false,
@@ -445,6 +469,7 @@ private class IosCoreBluetoothDelegate(
             .filterIsInstance<CBService>()
             .firstOrNull { it.UUID == scanService }
         if (service == null) {
+            pendingTransports.remove(peripheral.identifier.UUIDString)
             onConnectionChanged?.invoke(
                 bindingFor(peripheral),
                 false,
@@ -466,6 +491,7 @@ private class IosCoreBluetoothDelegate(
         val binding = bindingFor(peripheral)
         val identifier = binding.identifier
         if (error != null) {
+            pendingTransports.remove(identifier)
             onConnectionChanged?.invoke(binding, false, error.localizedDescription)
             return
         }
@@ -502,6 +528,7 @@ private class IosCoreBluetoothDelegate(
         val identifier = peripheral.identifier.UUIDString
         if (didUpdateNotificationStateForCharacteristic.UUID != notifyUuid) return
         if (error != null || !didUpdateNotificationStateForCharacteristic.isNotifying) {
+            pendingTransports.remove(identifier)
             onConnectionChanged?.invoke(
                 bindingFor(peripheral),
                 false,
@@ -564,8 +591,56 @@ private class IosCoreBluetoothDelegate(
             identifier in notifyEnabled &&
             readyIdentifiers.add(identifier)
         ) {
+            pendingTransports.remove(identifier)
             onTransportReady?.invoke(binding)
             writePendingCommand(identifier)
+        }
+    }
+
+    private fun beginConnection(identifier: String, peripheral: CBPeripheral) {
+        ignoredDisconnects.remove(identifier)
+        val token = ++lifecycleToken
+        pendingConnections[identifier] = token
+        centralManager.connectPeripheral(peripheral, options = null)
+        dispatch_after(
+            dispatch_time(DISPATCH_TIME_NOW, IOS_CONNECT_TIMEOUT_SECONDS * NSEC_PER_SEC.toLong()),
+            dispatch_get_main_queue(),
+        ) {
+            if (pendingConnections[identifier] != token) return@dispatch_after
+            pendingConnections.remove(identifier)
+            pendingTransports.remove(identifier)
+            ignoredDisconnects.add(identifier)
+            pendingCommands.remove(identifier)
+            awaitingResponses.remove(identifier)
+            commandAttempts.remove(identifier)
+            centralManager.cancelPeripheralConnection(peripheral)
+            onConnectionChanged?.invoke(
+                DeviceBinding.IosPeripheral(identifier),
+                false,
+                "iOS 蓝牙连接超时，请确认开门器在附近后重试",
+            )
+        }
+    }
+
+    private fun scheduleTransportTimeout(identifier: String, token: Long) {
+        dispatch_after(
+            dispatch_time(DISPATCH_TIME_NOW, IOS_TRANSPORT_TIMEOUT_SECONDS * NSEC_PER_SEC.toLong()),
+            dispatch_get_main_queue(),
+        ) {
+            if (pendingTransports[identifier] != token || identifier in readyIdentifiers) {
+                return@dispatch_after
+            }
+            pendingTransports.remove(identifier)
+            ignoredDisconnects.add(identifier)
+            pendingCommands.remove(identifier)
+            awaitingResponses.remove(identifier)
+            commandAttempts.remove(identifier)
+            peripherals[identifier]?.let(centralManager::cancelPeripheralConnection)
+            onConnectionChanged?.invoke(
+                DeviceBinding.IosPeripheral(identifier),
+                false,
+                "iOS 蓝牙服务发现超时，请确认开门器固件支持 EasyOpen 协议",
+            )
         }
     }
 

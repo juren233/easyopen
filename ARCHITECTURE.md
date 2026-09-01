@@ -94,6 +94,6 @@ shared 页面只依赖平台无关快照和回调；页面不直接操作 GATT�
 ## iOS 平台边界
 
 - `shared/src/iosMain/kotlin/com/juren233/easyopen/shared/platform/IosCoreBluetoothPort.kt` 持有 `CBCentralManager`、`CBPeripheral`、服务/特征发现、通知启用、配对/开门写入和通知响应状态。
-- 只有 `DeviceBinding.IosPeripheral(identifier)` 进入 shared 状态；不把 `CBPeripheral` 或 iOS UUID 写入 Android MAC 分享/备份格式。iOS 多设备列表保存在 `NSUserDefaults`，由 shared 的 `EasyOpenSavedDevice` 规则处理活动设备切换。
-- `shared/src/iosMain/kotlin/com/juren233/easyopen/shared/ui/IosMainViewController.kt` 提供 shared Pairing/Home/Settings 宿主；iOS 设备列表和设置分别由 `shared/src/iosMain/kotlin/com/juren233/easyopen/shared/storage/` 下的平台存储负责。
+- 只有 `DeviceBinding.IosPeripheral(identifier)` 进入 shared 状态；不把 `CBPeripheral` 或 iOS UUID 写入 Android MAC 分享/备份格式。iOS 多设备列表保存在 `NSUserDefaults`，开门器密码保存在 `Keychain` generic-password 项，由 shared 的 `EasyOpenSavedDevice` 规则处理活动设备切换。
+- `shared/src/iosMain/kotlin/com/juren233/easyopen/shared/ui/IosMainViewController.kt` 提供 shared Pairing/Home/Settings 宿主；iOS 设备元数据、密码和设置分别由 `shared/src/iosMain/kotlin/com/juren233/easyopen/shared/storage/` 下的平台存储负责。
 - Core NFC、系统文件选择器、iOS 二维码导入导出和 iOS 真机验收仍是独立待办；Android 备份已使用可选 `androidMac` 字段并兼容旧 `address`，Android 紧凑二维码暂保持原格式。
