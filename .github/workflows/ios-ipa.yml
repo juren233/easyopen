@@ -77,6 +77,11 @@ jobs:
         if: steps.gate.outputs.skip != 'true'
         run: bash .github/scripts/test-ios-native-text.sh
 
+      - name: 验证 iOS 字体回退 Verify iOS Typography
+        if: steps.gate.outputs.skip != 'true'
+        run: bash .github/scripts/test-ios-typography.sh
+
+
       - name: 验证版本转换 Version Mapping Test
         if: steps.gate.outputs.skip != 'true'
         run: bash .github/scripts/test-version-resolution.sh

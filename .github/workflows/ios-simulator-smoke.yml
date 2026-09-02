@@ -61,5 +61,9 @@ jobs:
       - name: 验证 iOS 原生文案 Verify iOS Native Text
         run: bash .github/scripts/test-ios-native-text.sh
 
+      - name: 验证 iOS 字体回退 Verify iOS Typography
+        run: bash .github/scripts/test-ios-typography.sh
+
+
       - name: 执行 iOS Simulator Smoke
         run: bash .github/scripts/ios-simulator-smoke.sh

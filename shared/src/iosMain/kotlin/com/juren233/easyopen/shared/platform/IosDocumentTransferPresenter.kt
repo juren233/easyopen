@@ -96,11 +96,10 @@ internal object IosDocumentTransferPresenter {
 
     fun presentQrScanner(onPayload: (String) -> Unit) {
         val presenter = topViewController() ?: return
-        // The final app bundle must carry NSCameraUsageDescription. The IPA
-        // built from commit 870fc9 was missing that key and crashed as soon as
-        // AVFoundation was first touched. The build script now validates the
-        // archived plist before packaging; AVFoundation handles the first-use
-        // permission prompt after that check.
+        // The final app bundle carries NSCameraUsageDescription. The scanner
+        // also configures metadata types only after its output is attached to
+        // the capture session; AVFoundation otherwise raises an Objective-C
+        // exception because QRCode is not available on the unattached output.
         presenter.presentViewController(
             QrScannerViewController(onPayload),
             animated = true,
@@ -191,6 +190,14 @@ internal object IosDocumentTransferPresenter {
                 setupError = EasyOpenPlatformText.qrScannerStartFailed
                 return
             }
+            // AVCaptureMetadataOutput only exposes metadata types after it is
+            // attached to the session. Setting metadataObjectTypes first throws
+            // an Objective-C exception on iOS 27 instead of returning an error.
+            captureSession.addOutput(output)
+            if (!output.availableMetadataObjectTypes.contains(AVMetadataObjectTypeQRCode)) {
+                setupError = EasyOpenPlatformText.qrScannerStartFailed
+                return
+            }
             val delegate = MetadataDelegate { payload ->
                 if (finished) return@MetadataDelegate
                 finished = true
@@ -202,7 +209,6 @@ internal object IosDocumentTransferPresenter {
             metadataDelegate = delegate
             output.setMetadataObjectsDelegate(delegate, queue = dispatch_get_main_queue())
             output.metadataObjectTypes = listOf(AVMetadataObjectTypeQRCode)
-            captureSession.addOutput(output)
             if (captureSession.canSetSessionPreset(AVCaptureSessionPresetHigh)) {
                 captureSession.sessionPreset = AVCaptureSessionPresetHigh
             }
