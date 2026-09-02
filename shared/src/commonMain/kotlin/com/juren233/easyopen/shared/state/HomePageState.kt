@@ -26,5 +26,4 @@ data class HomePageSnapshot(
     val busy: Boolean = false,
     val canUnlock: Boolean = false,
     val availableUpdate: HomeUpdateNotice? = null,
-    val message: String? = null,
 )

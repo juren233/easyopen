@@ -309,7 +309,6 @@ private fun IosRootContentBody(
                     availableUpdate = availableUpdate?.let {
                         HomeUpdateNotice(it.displayVersion)
                     },
-                    message = bleSnapshot.message,
                 ),
                 onOpenScanner = ::requestQrImport,
                 onOpenSettings = { navigator.navigate(EasyOpenRoute.Settings) },

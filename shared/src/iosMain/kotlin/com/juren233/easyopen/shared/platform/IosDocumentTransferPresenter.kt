@@ -26,7 +26,6 @@ import platform.CoreGraphics.CGRectGetHeight
 import platform.CoreGraphics.CGRectGetWidth
 import platform.CoreGraphics.CGRectMake
 import platform.CoreImage.CIFilter
-import platform.CoreImage.CIFilterConstructorProtocol
 import platform.CoreImage.CIQRCodeGeneratorProtocol
 import platform.CoreMedia.CMSampleBufferGetImageBuffer
 import platform.CoreMedia.CMSampleBufferRef
@@ -160,9 +159,17 @@ internal object IosDocumentTransferPresenter {
         presenter.presentViewController(picker, animated = true, completion = null)
     }
 
-    @Suppress("CAST_NEVER_SUCCEEDS")
     private fun createQrImage(payload: String): UIImage? {
-        val filter = ((CIFilter.Companion as CIFilterConstructorProtocol).filterWithName("CIQRCodeGenerator") ?: return null) as CIQRCodeGeneratorProtocol
+        // Kotlin/Native imports CIFilter's class factory as an Obj-C companion
+        // protocol, but CIFilter.Companion is not an instance of that protocol.
+        // The old cast compiled with CAST_NEVER_SUCCEEDS and aborted at runtime
+        // as soon as the iOS share button tried to create the QR image. Create
+        // the filter instance first and set its registered Core Image name;
+        // keep every step nullable so a missing system filter reports an error
+        // instead of taking down the app.
+        val filter = CIFilter().apply {
+            name = "CIQRCodeGenerator"
+        } as? CIQRCodeGeneratorProtocol ?: return null
         filter.message = payload.encodeToByteArray().toNSData()
         filter.correctionLevel = "H"
         val output = filter.outputImage ?: return null

@@ -78,7 +78,6 @@ internal fun HomePage(
             busy = bleSnapshot.busy,
             canUnlock = bleSnapshot.canUnlock(binding, coreProfile),
             availableUpdate = availableUpdate?.let { HomeUpdateNotice(it.displayVersion) },
-            message = bleSnapshot.message,
         ),
         onOpenScanner = onOpenScanner,
         onOpenSettings = onOpenSettings,
