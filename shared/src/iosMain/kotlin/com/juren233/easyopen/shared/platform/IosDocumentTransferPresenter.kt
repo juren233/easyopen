@@ -4,6 +4,8 @@ import com.juren233.easyopen.shared.text.EasyOpenPlatformText
 import kotlinx.cinterop.BetaInteropApi
 import kotlinx.cinterop.ByteVar
 import kotlinx.cinterop.ExperimentalForeignApi
+import kotlinx.cinterop.interpretObjCPointerOrNull
+import kotlinx.cinterop.objcPtr
 import kotlinx.cinterop.ObjCAction
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.reinterpret
@@ -26,6 +28,7 @@ import platform.CoreGraphics.CGRectGetHeight
 import platform.CoreGraphics.CGRectGetWidth
 import platform.CoreGraphics.CGRectMake
 import platform.CoreImage.CIFilter
+import platform.CoreImage.CIFilterConstructorProtocol
 import platform.CoreImage.CIQRCodeGeneratorProtocol
 import platform.CoreMedia.CMSampleBufferGetImageBuffer
 import platform.CoreMedia.CMSampleBufferRef
@@ -160,16 +163,17 @@ internal object IosDocumentTransferPresenter {
     }
 
     private fun createQrImage(payload: String): UIImage? {
-        // Kotlin/Native imports CIFilter's class factory as an Obj-C companion
-        // protocol, but CIFilter.Companion is not an instance of that protocol.
-        // The old cast compiled with CAST_NEVER_SUCCEEDS and aborted at runtime
-        // as soon as the iOS share button tried to create the QR image. Create
-        // the filter instance first and set its registered Core Image name;
-        // keep every step nullable so a missing system filter reports an error
-        // instead of taking down the app.
-        val filter = CIFilter().apply {
-            name = "CIQRCodeGenerator"
-        } as? CIQRCodeGeneratorProtocol ?: return null
+        // Kotlin/Native exposes CIFilter's class factory as an Objective-C
+        // protocol on the metaclass. A normal Kotlin `as` cast of
+        // CIFilter.Companion fails at runtime, so reinterpret the same Obj-C
+        // class pointer and keep every factory step nullable. The factory then
+        // returns the real CIQRCodeGenerator object, which is safely narrowed
+        // to the generated protocol before its typed inputs are assigned.
+        val factory = interpretObjCPointerOrNull<CIFilterConstructorProtocol>(CIFilter.Companion.objcPtr())
+            ?: return null
+        val filter = factory.filterWithName("CIQRCodeGenerator")
+            ?.let { generated -> generated as? CIQRCodeGeneratorProtocol }
+            ?: return null
         filter.message = payload.encodeToByteArray().toNSData()
         filter.correctionLevel = "H"
         val output = filter.outputImage ?: return null

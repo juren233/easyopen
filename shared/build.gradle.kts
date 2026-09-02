@@ -10,7 +10,7 @@ kotlin {
     android {
         namespace = "com.juren233.easyopen.shared"
         compileSdk = 37
-        minSdk = 33
+        minSdk = 26
         androidResources.enable = true
         withHostTest {}
     }

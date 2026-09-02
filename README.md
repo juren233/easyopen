@@ -10,7 +10,7 @@
 
 <p align="center">
   <a href="https://creativecommons.org/licenses/by-nc/4.0/"><img src="https://img.shields.io/badge/License-CC%20BY--NC%204.0-blue.svg" alt="License CC BY-NC 4.0" /></a>
-  <a href="https://developer.android.com/"><img src="https://img.shields.io/badge/Android-13.0%2B-3DDC84.svg" alt="Android 13.0+" /></a>
+  <a href="https://developer.android.com/"><img src="https://img.shields.io/badge/Android-8.0%2B-3DDC84.svg" alt="Android 8.0+" /></a>
   <a href="https://kotlinlang.org/"><img src="https://img.shields.io/badge/Kotlin-2.3.21-7F52FF.svg" alt="Kotlin 2.3.21" /></a>
   <a href="https://developer.mozilla.org/docs/Web/API/Web_Bluetooth_API"><img src="https://img.shields.io/badge/Web-Bluetooth-0F172A.svg" alt="Web Bluetooth" /></a>
 </p>
@@ -38,7 +38,8 @@ EasyOpen 是一个面向 YILA 开门器的本地控制工具，提供 **Android 
 
 ### 环境要求
 
-- Android 13.0（API 33）及以上。
+- Android 8.0（API 26）及以上。
+- Android 13（API 33）及以上默认启用 Miuix 模糊；低于 Android 13 的系统会自动禁用模糊，但不影响其他功能。
 - 首次使用需要蓝牙扫描、蓝牙连接权限；部分系统可能同时要求定位权限。
 - NFC 开门需要设备支持并开启 NFC；标签必须先写入 EasyOpen 的 NDEF MIME 内容。
 - 扫描二维码需要相机权限。

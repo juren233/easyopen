@@ -46,10 +46,10 @@ android {
 
     defaultConfig {
         applicationId = "com.juren233.easyopen"
-        minSdk = 33
+        minSdk = 26
         targetSdk = 37
-        versionCode = 51
-        versionName = ciVersionName ?: "1.1.0-canary"
+        versionCode = 52
+        versionName = ciVersionName ?: "1.1.0-beta"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 

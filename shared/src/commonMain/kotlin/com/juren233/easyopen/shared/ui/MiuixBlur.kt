@@ -15,6 +15,9 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 @Composable
 fun rememberMiuixBlurBackdrop(): LayerBackdrop? {
+    // Miuix blur is backed by Android RuntimeShader, which is available from
+    // Android 13 (API 33). Keep the dependency packaged for older Android
+    // releases, but never instantiate its blur pipeline there.
     if (!isRuntimeShaderSupported()) return null
     val surfaceColor = MiuixTheme.colorScheme.surface
     return rememberLayerBackdrop {

@@ -1,20 +1,23 @@
 name: iOS IPA Build
 
 on:
-  push:
+  workflow_run:
+    workflows: ["Android Build & Release"]
+    types: [completed]
     branches: [main]
   workflow_dispatch:
 
 concurrency:
-  group: ios-ipa-${{ github.ref }}
+  group: ios-ipa-${{ github.event.workflow_run.head_branch || github.ref }}
   cancel-in-progress: false
 
 permissions:
-  contents: read
+  contents: write
   actions: read
 
 jobs:
   build:
+    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && (github.event.workflow_run.event == 'push' || github.event.workflow_run.event == 'workflow_dispatch'))
     runs-on: macos-26
     timeout-minutes: 45
 
@@ -22,12 +25,13 @@ jobs:
       - name: 拉取代码 Checkout
         uses: actions/checkout@v6
         with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
           fetch-depth: 0
 
       - name: 版本检测 Version Gate
         id: gate
         env:
-          EVENT_NAME: ${{ github.event_name }}
+          EVENT_NAME: ${{ github.event_name == 'workflow_dispatch' && 'workflow_dispatch' || 'push' }}
         run: |
           set -euo pipefail
           bash .github/scripts/resolve-version-gate.sh
@@ -89,12 +93,21 @@ jobs:
         id: build
         if: steps.gate.outputs.skip != 'true'
         env:
+          CHANNEL: ${{ steps.gate.outputs.channel }}
           FULL_NAME: ${{ steps.gate.outputs.full_name }}
           IOS_VERSION: ${{ steps.gate.outputs.ios_version }}
           VERSION_CODE: ${{ steps.gate.outputs.code }}
-          OUTPUT_NAME: EasyOpen-iOS-v${{ steps.gate.outputs.full_name }}-${{ steps.gate.outputs.code }}.ipa
         run: |
           set -euo pipefail
+
+          if [[ "$CHANNEL" == "stable" ]]; then
+            export XCODE_CONFIGURATION=Release
+            export OUTPUT_NAME="EasyOpen-iOS-release-v${FULL_NAME}-${VERSION_CODE}.ipa"
+          else
+            export XCODE_CONFIGURATION=Debug
+            export OUTPUT_NAME="EasyOpen-iOS-debug-v${FULL_NAME}-${VERSION_CODE}.ipa"
+          fi
+
           .github/scripts/build-unsigned-ipa.sh
 
       - name: 写入版本元数据 Write Version Metadata
@@ -104,7 +117,8 @@ jobs:
           IOS_VERSION: ${{ steps.gate.outputs.ios_version }}
           VERSION_CODE: ${{ steps.gate.outputs.code }}
           CHANNEL: ${{ steps.gate.outputs.channel }}
-          COMMIT_SHA: ${{ github.sha }}
+          COMMIT_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+          IPA_CONFIGURATION: ${{ steps.build.outputs.configuration }}
         run: |
           set -euo pipefail
           {
@@ -112,6 +126,8 @@ jobs:
             printf 'ios_bundle_short_version=%s\n' "$IOS_VERSION"
             printf 'ios_bundle_version=%s\n' "$VERSION_CODE"
             printf 'channel=%s\n' "$CHANNEL"
+            printf 'configuration=%s\n' "$IPA_CONFIGURATION"
+            printf 'unsigned=true\n'
             printf 'commit=%s\n' "$COMMIT_SHA"
           } > EasyOpen-iOS-build-metadata.txt
 
@@ -119,7 +135,7 @@ jobs:
         if: steps.gate.outputs.skip != 'true'
         uses: actions/upload-artifact@v7
         with:
-          name: EasyOpen-iOS-v${{ steps.gate.outputs.full_name }}-${{ steps.gate.outputs.code }}
+          name: EasyOpen-iOS-${{ steps.build.outputs.configuration }}-v${{ steps.gate.outputs.full_name }}-${{ steps.gate.outputs.code }}
           path: |
             ${{ steps.build.outputs.ipa_name }}
             ${{ steps.build.outputs.inspection_name }}
@@ -127,11 +143,24 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+      - name: 上传 IPA 到 GitHub Release 或 Pre-release Upload IPA To Release
+        if: steps.gate.outputs.skip != 'true' && (steps.gate.outputs.channel == 'stable' || steps.gate.outputs.channel == 'beta')
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: v${{ steps.gate.outputs.full_name }}
+          prerelease: ${{ steps.gate.outputs.channel == 'beta' }}
+          draft: false
+          generate_release_notes: false
+          files: ${{ steps.build.outputs.ipa_name }}
+          fail_on_unmatched_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: 上传 dSYM 诊断符号 Upload dSYM Symbols
         if: steps.gate.outputs.skip != 'true' && steps.build.outputs.dsym_name != ''
         uses: actions/upload-artifact@v7
         with:
-          name: EasyOpen-iOS-v${{ steps.gate.outputs.full_name }}-${{ steps.gate.outputs.code }}-dSYM
+          name: EasyOpen-iOS-${{ steps.build.outputs.configuration }}-v${{ steps.gate.outputs.full_name }}-${{ steps.gate.outputs.code }}-dSYM
           path: ${{ steps.build.outputs.dsym_name }}
           if-no-files-found: error
           retention-days: 14

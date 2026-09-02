@@ -9,8 +9,22 @@ version_code="${VERSION_CODE:?VERSION_CODE is required}"
 project_path="${XCODE_PROJECT:-$workspace/iosApp/EasyOpen.xcodeproj}"
 scheme="${XCODE_SCHEME:-EasyOpen}"
 configuration="${XCODE_CONFIGURATION:-Release}"
-framework_task="${FRAMEWORK_TASK:-:shared:linkReleaseFrameworkIosArm64}"
-framework_path="${FRAMEWORK_PATH:-$workspace/shared/build/bin/iosArm64/releaseFramework/EasyOpenShared.framework}"
+case "$configuration" in
+  Debug)
+    default_framework_task=":shared:linkDebugFrameworkIosArm64"
+    default_framework_path="$workspace/shared/build/bin/iosArm64/debugFramework/EasyOpenShared.framework"
+    ;;
+  Release)
+    default_framework_task=":shared:linkReleaseFrameworkIosArm64"
+    default_framework_path="$workspace/shared/build/bin/iosArm64/releaseFramework/EasyOpenShared.framework"
+    ;;
+  *)
+    printf '%s\n' "XCODE_CONFIGURATION must be Debug or Release: $configuration" >&2
+    exit 1
+    ;;
+esac
+framework_task="${FRAMEWORK_TASK:-$default_framework_task}"
+framework_path="${FRAMEWORK_PATH:-$default_framework_path}"
 icon_bundle_path="$workspace/iosApp/EasyOpen/Resources/AppIcon.icon"
 icon_catalog_path="$workspace/iosApp/EasyOpen/Resources/Assets.xcassets/AppIcon.appiconset"
 run_token="${GITHUB_RUN_ID:-$$}"
@@ -170,6 +184,8 @@ fi
 
 {
   printf 'android_display_version=%s\n' "$full_name"
+  printf 'xcode_configuration=%s\n' "$configuration"
+  printf 'framework_task=%s\n' "$framework_task"
   printf 'ios_bundle_short_version=%s\n' "$actual_ios_version"
   printf 'ios_bundle_version=%s\n' "$actual_version_code"
   printf 'CFBundleIconName=%s\n' "$actual_icon_name"
@@ -242,6 +258,7 @@ printf '%s\n' "IPA: $output_path"
 if [[ -n "${GITHUB_OUTPUT:-}" ]]; then
   printf 'ipa_path=%s\n' "$output_path" >> "$GITHUB_OUTPUT"
   printf 'ipa_name=%s\n' "$output_name" >> "$GITHUB_OUTPUT"
+  printf 'configuration=%s\n' "$configuration" >> "$GITHUB_OUTPUT"
   printf 'inspection_name=%s\n' "$inspection_name" >> "$GITHUB_OUTPUT"
   printf 'dsym_name=%s\n' "$dsym_name" >> "$GITHUB_OUTPUT"
 fi

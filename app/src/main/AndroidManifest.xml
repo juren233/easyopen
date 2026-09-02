@@ -1,11 +1,16 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <uses-sdk tools:overrideLibrary="top.yukonga.miuix.kmp.blur" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-feature android:name="android.hardware.bluetooth_le" android:required="false" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-feature android:name="android.hardware.nfc" android:required="false" />
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.NFC" />
-    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation" />
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_SCAN"
+        android:usesPermissionFlags="neverForLocation"
+        tools:targetApi="31" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     <!-- HyperOS/MIUI still gates BLE scan callbacks on the legacy location declaration. -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
