@@ -26,6 +26,9 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: 验证 Android 共用文案 Verify Android Shared Text
+        run: bash .github/scripts/test-android-shared-text.sh
+
       - name: 版本检测 Version Gate
         id: gate
         env:

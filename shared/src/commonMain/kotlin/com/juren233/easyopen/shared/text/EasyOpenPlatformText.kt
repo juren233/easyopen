@@ -25,6 +25,7 @@ internal object EasyOpenPlatformText {
     const val qrGenerationFailed = "无法生成分享二维码"
     const val confirm = "确定"
     const val cameraUnavailable = "无法访问相机"
+    const val cameraPermissionDenied = "无法使用相机，请在系统设置中允许 EasyOpen 访问相机"
     const val qrScannerStartFailed = "无法启动二维码扫描"
     const val close = "关闭"
 

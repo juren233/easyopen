@@ -1,14 +1,16 @@
 package com.juren233.easyopen.ui
 
+import com.juren233.easyopen.shared.resources.EasyOpenStrings
+
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.unit.dp
-import com.juren233.easyopen.R
 import com.juren233.easyopen.nfc.NfcWriteRequest
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.Text as MiuixText
@@ -30,14 +32,14 @@ internal fun NfcWriteDialogs(
 ) {
     if (waiting) {
         WindowDialog(
-            title = stringResource(R.string.nfc_write_waiting_title),
+            title = stringResource(EasyOpenStrings.nfc_write_waiting_title),
             show = true,
             onDismissRequest = onCancel,
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                MiuixText(text = stringResource(R.string.nfc_write_waiting_description))
+                MiuixText(text = stringResource(EasyOpenStrings.nfc_write_waiting_description))
                 MiuixTextButton(
-                    text = stringResource(R.string.cancel),
+                    text = stringResource(EasyOpenStrings.cancel),
                     onClick = onCancel,
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -47,14 +49,14 @@ internal fun NfcWriteDialogs(
 
     if (awaitingTag) {
         WindowDialog(
-            title = stringResource(R.string.nfc_write_reconnect_title),
+            title = stringResource(EasyOpenStrings.nfc_write_reconnect_title),
             show = true,
             onDismissRequest = onCancel,
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                MiuixText(text = stringResource(R.string.nfc_write_reconnect_description))
+                MiuixText(text = stringResource(EasyOpenStrings.nfc_write_reconnect_description))
                 MiuixTextButton(
-                    text = stringResource(R.string.cancel),
+                    text = stringResource(EasyOpenStrings.cancel),
                     onClick = onCancel,
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -65,16 +67,16 @@ internal fun NfcWriteDialogs(
     if (!awaitingTag) request?.let { writeRequest ->
         val originalRecordCount = writeRequest.originalMessage?.records?.size ?: 0
         WindowDialog(
-            title = stringResource(R.string.nfc_write_choice_title),
+            title = stringResource(EasyOpenStrings.nfc_write_choice_title),
             show = true,
             onDismissRequest = onCancel,
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 MiuixText(
                     text = if (originalRecordCount > 0) {
-                        stringResource(R.string.nfc_write_choice_description, originalRecordCount)
+                        stringResource(EasyOpenStrings.nfc_write_choice_description, originalRecordCount)
                     } else {
-                        stringResource(R.string.nfc_write_choice_empty)
+                        stringResource(EasyOpenStrings.nfc_write_choice_empty)
                     },
                 )
                 Row(
@@ -82,12 +84,12 @@ internal fun NfcWriteDialogs(
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     MiuixTextButton(
-                        text = stringResource(R.string.nfc_write_without_original),
+                        text = stringResource(EasyOpenStrings.nfc_write_without_original),
                         onClick = { onChoice(false) },
                         modifier = Modifier.weight(1f),
                     )
                     MiuixTextButton(
-                        text = stringResource(R.string.nfc_write_preserve_original),
+                        text = stringResource(EasyOpenStrings.nfc_write_preserve_original),
                         onClick = { onChoice(true) },
                         modifier = Modifier.weight(1f),
                         colors = ButtonDefaults.textButtonColorsPrimary(),
@@ -99,11 +101,11 @@ internal fun NfcWriteDialogs(
 
     if (writing) {
         WindowDialog(
-            title = stringResource(R.string.nfc_write_in_progress_title),
+            title = stringResource(EasyOpenStrings.nfc_write_in_progress_title),
             show = true,
             onDismissRequest = {},
         ) {
-            MiuixText(text = stringResource(R.string.nfc_write_in_progress_description))
+            MiuixText(text = stringResource(EasyOpenStrings.nfc_write_in_progress_description))
         }
     }
 }

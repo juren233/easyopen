@@ -1,5 +1,8 @@
 package com.juren233.easyopen.ui
 
+import com.juren233.easyopen.shared.resources.EasyOpenStrings
+
+
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.SystemClock
@@ -22,7 +25,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
@@ -35,7 +38,6 @@ import com.journeyapps.barcodescanner.DefaultDecoderFactory
 import com.journeyapps.barcodescanner.camera.CameraSettings
 import com.journeyapps.barcodescanner.camera.CenterCropStrategy
 import com.juren233.easyopen.BuildConfig
-import com.juren233.easyopen.R
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.Text as MiuixText
 import top.yukonga.miuix.kmp.basic.TextButton as MiuixTextButton
@@ -80,11 +82,11 @@ internal fun QrCameraPreview(
             verticalArrangement = Arrangement.Center,
         ) {
             MiuixText(
-                text = stringResource(R.string.camera_permission_required),
+                text = stringResource(EasyOpenStrings.camera_permission_required),
                 color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
             )
             MiuixTextButton(
-                text = stringResource(R.string.allow_camera),
+                text = stringResource(EasyOpenStrings.allow_camera),
                 onClick = { permissionLauncher.launch(Manifest.permission.CAMERA) },
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.textButtonColorsPrimary(),
@@ -146,11 +148,11 @@ internal fun QrCameraPreview(
                 verticalArrangement = Arrangement.Center,
             ) {
                 MiuixText(
-                    text = stringResource(R.string.camera_start_failed),
+                    text = stringResource(EasyOpenStrings.camera_start_failed),
                     color = MiuixTheme.colorScheme.error,
                 )
                 MiuixTextButton(
-                    text = stringResource(R.string.retry),
+                    text = stringResource(EasyOpenStrings.retry),
                     onClick = { cameraError = false },
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.textButtonColorsPrimary(),

@@ -96,9 +96,11 @@ internal object IosDocumentTransferPresenter {
 
     fun presentQrScanner(onPayload: (String) -> Unit) {
         val presenter = topViewController() ?: return
-        // The camera usage description is declared in the host Info.plist. The
-        // capture session will surface the system permission prompt on first
-        // access; if access is denied, the controller reports a clear error.
+        // The final app bundle must carry NSCameraUsageDescription. The IPA
+        // built from commit 870fc9 was missing that key and crashed as soon as
+        // AVFoundation was first touched. The build script now validates the
+        // archived plist before packaging; AVFoundation handles the first-use
+        // permission prompt after that check.
         presenter.presentViewController(
             QrScannerViewController(onPayload),
             animated = true,
@@ -168,6 +170,7 @@ internal object IosDocumentTransferPresenter {
         private var previewLayer: AVCaptureVideoPreviewLayer? = null
         private var metadataDelegate: MetadataDelegate? = null
         private var closeButton: UIButton? = null
+        private var setupError: String? = null
         private var finished = false
 
         override fun viewDidLoad() {
@@ -178,14 +181,14 @@ internal object IosDocumentTransferPresenter {
             val camera = AVCaptureDevice.Companion.defaultDeviceWithMediaType(AVMediaTypeVideo)
             val input = camera?.let { AVCaptureDeviceInput(device = it, error = null) }
             if (input == null || !captureSession.canAddInput(input)) {
-                presentError(EasyOpenPlatformText.cameraUnavailable)
+                setupError = EasyOpenPlatformText.cameraUnavailable
                 return
             }
             captureSession.addInput(input)
 
             val output = AVCaptureMetadataOutput()
             if (!captureSession.canAddOutput(output)) {
-                presentError(EasyOpenPlatformText.qrScannerStartFailed)
+                setupError = EasyOpenPlatformText.qrScannerStartFailed
                 return
             }
             val delegate = MetadataDelegate { payload ->
@@ -223,6 +226,14 @@ internal object IosDocumentTransferPresenter {
 
         override fun viewDidAppear(animated: Boolean) {
             super.viewDidAppear(animated)
+            setupError?.let { message ->
+                setupError = null
+                finished = true
+                dismissViewControllerAnimated(true) {
+                    IosDocumentTransferPresenter.presentError(message)
+                }
+                return
+            }
             session?.startRunning()
         }
 

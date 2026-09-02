@@ -6,7 +6,7 @@
 
 - `shared` 负责生成 `EasyOpenShared.framework`。
 - `iosApp/EasyOpen.xcodeproj` 负责生成 iOS App。
-- `.github/scripts/build-unsigned-ipa.sh` 通过 `xcodebuild archive CODE_SIGNING_ALLOWED=NO` 归档；随后显式执行 `:shared:syncComposeResourcesForIos`，把 `compose-resources/` 同步到归档 App，再手动打包 `Payload/*.app` 为未签名 `.ipa`。
+- `.github/scripts/build-unsigned-ipa.sh` 通过 `xcodebuild archive CODE_SIGNING_ALLOWED=NO` 归档；随后重新生成同一次 Gradle 构建对应的 `iosArm64` Compose 资源聚合目录，校验 CVR 的 UTF-8 内容与生成 accessor 的字节偏移完全一致，再复制到归档 App 的 `compose-resources/`，打包后还会重新解压实际 IPA 做一次相同校验，最后产出未签名 `.ipa`。
 - iOS 宿主当前显式关闭 Compose 的 `parallelRendering`，让首帧渲染回到主线程；这是针对 iOS 27.0 真机首帧在 Compose 独立渲染线程上触发 `SIGABRT` 的稳定性保护，待真机回归通过后再评估恢复并行渲染。
 - iOS 宿主使用 Info.plist 的 `UILaunchScreen` 启动屏配置，不使用固定设备尺寸的 `LaunchScreen.storyboard`；这样不会把 iPhone 预览画布尺寸误认为运行时窗口尺寸。SwiftUI 容器同时使用最大尺寸和 `ignoresSafeArea()`，让 shared Compose 页面占满窗口。
 - iOS App 图标使用与 Android adaptive icon 相同的蓝底白色 EasyOpen 标记：`EasyOpen/Resources/AppIcon.icon` 是 Xcode 26/Icon Composer 的背景层 + 前景层分层图标，`EasyOpen/Resources/Assets.xcassets/AppIcon.appiconset` 提供 iOS 16+ 的静态 1024px 回退资源；Xcode 构建设置同时启用两者，避免旧系统没有分层图标支持时缺少 App Icon。

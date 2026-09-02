@@ -1,9 +1,11 @@
 package com.juren233.easyopen.ui
 
+import com.juren233.easyopen.shared.resources.EasyOpenStrings
+
+
 import androidx.compose.foundation.layout.Column
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.res.stringResource
-import com.juren233.easyopen.R
+import org.jetbrains.compose.resources.stringResource
 import com.juren233.easyopen.data.DeviceProfile
 import top.yukonga.miuix.kmp.preference.ArrowPreference
 import top.yukonga.miuix.kmp.window.WindowDialog
@@ -17,7 +19,7 @@ internal fun DeviceChooserDialog(
     onAddDevice: () -> Unit,
 ) {
     WindowDialog(
-        title = stringResource(R.string.switch_opener_dialog_title),
+        title = stringResource(EasyOpenStrings.switch_opener_dialog_title),
         show = true,
         onDismissRequest = onDismiss,
     ) {
@@ -26,7 +28,7 @@ internal fun DeviceChooserDialog(
                 ArrowPreference(
                     title = device.name,
                     summary = if (device.address.equals(activeAddress, ignoreCase = true)) {
-                        stringResource(R.string.current_device_summary, device.address)
+                        stringResource(EasyOpenStrings.current_device_summary, device.address)
                     } else {
                         device.address
                     },
@@ -34,8 +36,8 @@ internal fun DeviceChooserDialog(
                 )
             }
             ArrowPreference(
-                title = stringResource(R.string.add_opener_title),
-                summary = stringResource(R.string.add_opener_dialog_summary),
+                title = stringResource(EasyOpenStrings.add_opener_title),
+                summary = stringResource(EasyOpenStrings.add_opener_dialog_summary),
                 onClick = onAddDevice,
             )
         }

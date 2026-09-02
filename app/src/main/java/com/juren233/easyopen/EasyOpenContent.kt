@@ -1,5 +1,8 @@
 package com.juren233.easyopen
 
+import com.juren233.easyopen.shared.resources.EasyOpenStrings
+
+
 import android.content.SharedPreferences
 import android.widget.Toast
 import androidx.compose.runtime.Composable
@@ -13,7 +16,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.stringResource
 import com.juren233.easyopen.ble.AndroidBlePort
 import com.juren233.easyopen.ble.BleDoorController
 import com.juren233.easyopen.data.AppSettings
@@ -47,9 +50,11 @@ internal fun EasyOpenContent(
     nfcReaderState: StateFlow<NfcReaderState>,
 ) {
     val context = LocalContext.current
-    val nfcWriteSuccessMessage = stringResource(R.string.nfc_write_success)
-    val nfcWriteFailedFormat = stringResource(R.string.nfc_write_failed)
-    val nfcWriteFailedUnknownMessage = stringResource(R.string.nfc_write_failed_unknown)
+    val nfcWriteSuccessMessage = stringResource(EasyOpenStrings.nfc_write_success)
+    val nfcWriteFailedFormat = stringResource(EasyOpenStrings.nfc_write_failed)
+    val nfcWriteFailedUnknownMessage = stringResource(EasyOpenStrings.nfc_write_failed_unknown)
+    val nfcNotSupportedMessage = stringResource(EasyOpenStrings.nfc_not_supported)
+    val nfcTurnOnMessage = stringResource(EasyOpenStrings.nfc_turn_on)
     val scannedDevices by controller.devices.collectAsState()
     val batteryLevels by controller.batteryLevels.collectAsState()
     val nfcState by nfcReaderState.collectAsState()
@@ -255,12 +260,12 @@ internal fun EasyOpenContent(
         when {
             !nfcState.supported -> Toast.makeText(
                 context,
-                R.string.nfc_not_supported,
+                nfcNotSupportedMessage,
                 Toast.LENGTH_SHORT,
             ).show()
             !nfcState.enabled -> Toast.makeText(
                 context,
-                R.string.nfc_turn_on,
+                nfcTurnOnMessage,
                 Toast.LENGTH_SHORT,
             ).show()
             nfcWriting -> Unit

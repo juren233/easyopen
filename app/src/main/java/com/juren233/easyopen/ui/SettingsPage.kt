@@ -1,13 +1,15 @@
 package com.juren233.easyopen.ui
 
+import com.juren233.easyopen.shared.resources.EasyOpenStrings
+
+
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
-import com.juren233.easyopen.R
+import org.jetbrains.compose.resources.stringResource
 import com.juren233.easyopen.data.AppSettings
 import com.juren233.easyopen.shared.ui.SettingsPageContent
 import com.juren233.easyopen.data.DeviceProfile
@@ -31,10 +33,10 @@ internal fun SettingsPage(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val backupSuccessMessage = stringResource(R.string.backup_success)
-    val backupFailedMessage = stringResource(R.string.backup_failed)
-    val restoreSuccessMessage = stringResource(R.string.restore_success)
-    val restoreFailedMessage = stringResource(R.string.restore_failed)
+    val backupSuccessMessage = stringResource(EasyOpenStrings.backup_success)
+    val backupFailedMessage = stringResource(EasyOpenStrings.backup_failed)
+    val restoreSuccessMessage = stringResource(EasyOpenStrings.restore_success)
+    val restoreFailedMessage = stringResource(EasyOpenStrings.restore_failed)
 
     val backupLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/json"),

@@ -1,5 +1,8 @@
 package com.juren233.easyopen.ui
 
+import com.juren233.easyopen.shared.resources.EasyOpenStrings
+
+
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -24,9 +27,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.unit.dp
-import com.juren233.easyopen.R
 import com.juren233.easyopen.data.DeviceProfile
 import com.juren233.easyopen.data.TransferCodec
 import com.juren233.easyopen.transfer.QrTransfer
@@ -61,8 +63,8 @@ internal fun QrImportPage(
     var error by remember { mutableStateOf<String?>(null) }
     var decoding by remember { mutableStateOf(false) }
     var cameraSession by remember { mutableStateOf(0) }
-    val invalidQrMessage = stringResource(R.string.qr_import_invalid)
-    val restoreFailedMessage = stringResource(R.string.restore_failed)
+    val invalidQrMessage = stringResource(EasyOpenStrings.qr_import_invalid)
+    val restoreFailedMessage = stringResource(EasyOpenStrings.restore_failed)
 
     val recognized = decodedProfiles != null || decodedBackup != null
 
@@ -137,11 +139,11 @@ internal fun QrImportPage(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = stringResource(R.string.scan_import_title),
+                title = stringResource(EasyOpenStrings.scan_import_title),
                 scrollBehavior = scrollBehavior,
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(imageVector = MiuixIcons.Back, contentDescription = stringResource(R.string.back))
+                        Icon(imageVector = MiuixIcons.Back, contentDescription = stringResource(EasyOpenStrings.back))
                     }
                 },
             )
@@ -218,7 +220,7 @@ internal fun QrImportPage(
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 18.dp),
                             verticalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
-                            MiuixText(text = stringResource(R.string.qr_import_found, profiles.size))
+                            MiuixText(text = stringResource(EasyOpenStrings.qr_import_found, profiles.size))
                             profiles.forEach { profile ->
                                 MiuixText(
                                     text = "${profile.name}\n${profile.address}",
@@ -226,7 +228,7 @@ internal fun QrImportPage(
                                 )
                             }
                             MiuixTextButton(
-                                text = stringResource(R.string.import_opener),
+                                text = stringResource(EasyOpenStrings.import_opener),
                                 onClick = { onImported(profiles) },
                                 modifier = Modifier.fillMaxWidth(),
                                 colors = ButtonDefaults.textButtonColorsPrimary(),
@@ -247,7 +249,7 @@ internal fun QrImportPage(
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 18.dp),
                             verticalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
-                            MiuixText(text = stringResource(R.string.backup_found, snapshot.devices.size))
+                            MiuixText(text = stringResource(EasyOpenStrings.backup_found, snapshot.devices.size))
                             snapshot.devices.forEach { profile ->
                                 MiuixText(
                                     text = "${profile.name}\n${profile.address}",
@@ -256,7 +258,7 @@ internal fun QrImportPage(
                             }
                             onRestored?.let { restore ->
                                 MiuixTextButton(
-                                    text = stringResource(R.string.restore_backup),
+                                    text = stringResource(EasyOpenStrings.restore_backup),
                                     onClick = { restore(snapshot) },
                                     modifier = Modifier.fillMaxWidth(),
                                     colors = ButtonDefaults.textButtonColorsPrimary(),

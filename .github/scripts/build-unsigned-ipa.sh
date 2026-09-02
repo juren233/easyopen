@@ -76,37 +76,54 @@ else
 fi
 
 # Compose Multiplatform resources are not part of a static Kotlin/Native
-# framework's executable. The normal Xcode integration runs
-# syncComposeResourcesForIos, but this repository intentionally drives
-# xcodebuild from a minimal hand-written project and packages the archive
-# manually. Sync the resource tree into the archived app before creating the
-# IPA; otherwise the first stringResource() lookup can terminate the app at
-# launch even though archive/link validation succeeds.
-app_products_dir="$(dirname "$app_path")"
-app_bundle_name="$(basename "$app_path")"
-compose_resources_dir="$app_path/compose-resources"
-PLATFORM_NAME=iphoneos \
-ARCHS=arm64 \
-BUILT_PRODUCTS_DIR="$app_products_dir" \
-UNLOCALIZED_RESOURCES_FOLDER_PATH="$app_bundle_name" \
-./gradlew --no-daemon --max-workers=2 --build-cache \
+# framework's executable. This repository drives xcodebuild from a minimal
+# hand-written project, so copy the exact iOS aggregate produced by the same
+# Gradle build into the archived app. Do not invoke the plugin's Xcode sync
+# task here: outside an Xcode-managed Gradle invocation it has no outputDir,
+# and copying a stale/incomplete CVR can make stringResource() return mixed or
+# garbled text after a relaunch.
+compose_resources_source="$workspace/shared/build/kotlin-multiplatform-resources/aggregated-resources/iosArm64/composeResources"
+compose_resources_source_file="$compose_resources_source/easyopen.shared.generated.resources/values/strings.commonMain.cvr"
+compose_resources_source_xml="$workspace/shared/src/commonMain/composeResources/values/strings.xml"
+./gradlew --no-daemon --max-workers=2 --build-cache --rerun-tasks \
   -PallowUnsigned=true \
-  -Pcompose.ios.resources.platform=iphoneos \
-  -Pcompose.ios.resources.archs=arm64 \
-  :shared:syncComposeResourcesForIos
+  :shared:iosArm64AggregateResources
+test -d "$compose_resources_source"
+test -f "$compose_resources_source_file"
+bash "$workspace/.github/scripts/test-ios-compose-resources.sh" \
+  --resource-file "$compose_resources_source_file" \
+  --source-xml "$compose_resources_source_xml"
+
+compose_resources_dir="$app_path/compose-resources"
+mkdir -p "$compose_resources_dir"
+cp -R "$compose_resources_source/." "$compose_resources_dir/"
 test -d "$compose_resources_dir/composeResources"
-test -f "$compose_resources_dir/composeResources/easyopen.shared.generated.resources/values/strings.commonMain.cvr"
+final_compose_resource_file="$compose_resources_dir/composeResources/easyopen.shared.generated.resources/values/strings.commonMain.cvr"
+test -f "$final_compose_resource_file"
+bash "$workspace/.github/scripts/test-ios-compose-resources.sh" \
+  --resource-file "$final_compose_resource_file" \
+  --source-xml "$compose_resources_source_xml"
 compose_resource_files="$(find "$compose_resources_dir" -type f -print | wc -l | tr -d '[:space:]')"
 test "$compose_resource_files" -gt 0
+compose_resource_records="$(grep -c '^string|' "$final_compose_resource_file")"
+compose_resource_sha256="$(/usr/bin/shasum -a 256 "$final_compose_resource_file" | awk '{print $1}')"
+compose_source_xml_sha256="$(/usr/bin/shasum -a 256 "$compose_resources_source_xml" | awk '{print $1}')"
+test "$compose_resource_records" -gt 0
+test -n "$compose_resource_sha256"
+test -n "$compose_source_xml_sha256"
 
 actual_ios_version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app_path/Info.plist")"
 actual_version_code="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$app_path/Info.plist")"
 actual_icon_name="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIconName' "$app_path/Info.plist")"
+camera_usage_description="$(/usr/libexec/PlistBuddy -c 'Print :NSCameraUsageDescription' "$app_path/Info.plist" 2>/dev/null || true)"
+nfc_usage_description="$(/usr/libexec/PlistBuddy -c 'Print :NFCReaderUsageDescription' "$app_path/Info.plist" 2>/dev/null || true)"
 disable_minimum_frame_duration="$(/usr/libexec/PlistBuddy -c 'Print :CADisableMinimumFrameDurationOnPhone' "$app_path/Info.plist")"
 launch_screen_type="$(/usr/libexec/PlistBuddy -c 'Print :UILaunchScreen' "$app_path/Info.plist" 2>/dev/null || true)"
 test "$actual_ios_version" = "$ios_version"
 test "$actual_version_code" = "$version_code"
 test "$actual_icon_name" = "AppIcon"
+test -n "$camera_usage_description"
+test -n "$nfc_usage_description"
 test "$disable_minimum_frame_duration" = "true"
 [[ "$launch_screen_type" == Dict* ]]
 if /usr/libexec/PlistBuddy -c 'Print :UILaunchStoryboardName' "$app_path/Info.plist" >/dev/null 2>&1; then
@@ -135,6 +152,8 @@ fi
   printf 'ios_bundle_short_version=%s\n' "$actual_ios_version"
   printf 'ios_bundle_version=%s\n' "$actual_version_code"
   printf 'CFBundleIconName=%s\n' "$actual_icon_name"
+  printf 'NSCameraUsageDescription=true\n'
+  printf 'NFCReaderUsageDescription=true\n'
   printf 'Assets.car=true\n'
   printf 'CADisableMinimumFrameDurationOnPhone=%s\n' "$disable_minimum_frame_duration"
   printf 'UILaunchScreen=%s\n' "$launch_screen_type"
@@ -146,6 +165,9 @@ fi
   printf 'unsigned=true\n'
   printf 'compose_resources_dir=%s\n' "${compose_resources_dir#"$app_path/"}"
   printf 'compose_resource_files=%s\n' "$compose_resource_files"
+  printf 'compose_resource_records=%s\n' "$compose_resource_records"
+  printf 'compose_resource_sha256=%s\n' "$compose_resource_sha256"
+  printf 'compose_source_xml_sha256=%s\n' "$compose_source_xml_sha256"
   printf '\nlinked_libraries:\n'
   /usr/bin/otool -L "$app_executable"
 } > "$inspection_path"
@@ -154,6 +176,28 @@ cp -R "$app_path" "$payload_dir/"
 (cd "$payload_root" && /usr/bin/zip -qry "$output_path" Payload)
 test -s "$output_path"
 /usr/bin/unzip -tq "$output_path" >/dev/null
+
+# Verify the bytes from the actual IPA, not only the pre-zip archive. This is
+# the final guard against an incomplete/stale CVR being shipped in the artifact
+# that gets signed and installed on a device.
+ipa_check_root="$payload_root/ipa-check"
+mkdir -p "$ipa_check_root"
+/usr/bin/unzip -q "$output_path" -d "$ipa_check_root"
+ipa_app_path="$(find "$ipa_check_root/Payload" -maxdepth 1 -type d -name '*.app' -print -quit)"
+test -n "$ipa_app_path"
+final_ipa_resource_file="$ipa_app_path/compose-resources/composeResources/easyopen.shared.generated.resources/values/strings.commonMain.cvr"
+test -f "$final_ipa_resource_file"
+bash "$workspace/.github/scripts/test-ios-compose-resources.sh" \
+  --resource-file "$final_ipa_resource_file" \
+  --source-xml "$compose_resources_source_xml"
+final_ipa_ios_version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$ipa_app_path/Info.plist")"
+final_ipa_version_code="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$ipa_app_path/Info.plist")"
+final_ipa_camera_usage="$(/usr/libexec/PlistBuddy -c 'Print :NSCameraUsageDescription' "$ipa_app_path/Info.plist" 2>/dev/null || true)"
+final_ipa_nfc_usage="$(/usr/libexec/PlistBuddy -c 'Print :NFCReaderUsageDescription' "$ipa_app_path/Info.plist" 2>/dev/null || true)"
+test "$final_ipa_ios_version" = "$ios_version"
+test "$final_ipa_version_code" = "$version_code"
+test -n "$final_ipa_camera_usage"
+test -n "$final_ipa_nfc_usage"
 test -s "$inspection_path"
 package_seconds=$((SECONDS - package_started))
 printf 'framework_seconds=%s\n' "$framework_seconds" >> "$inspection_path"

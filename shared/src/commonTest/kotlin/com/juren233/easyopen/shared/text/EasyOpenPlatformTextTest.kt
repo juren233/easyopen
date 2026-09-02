@@ -28,6 +28,7 @@ class EasyOpenPlatformTextTest {
             EasyOpenPlatformText.qrGenerationFailed,
             EasyOpenPlatformText.confirm,
             EasyOpenPlatformText.cameraUnavailable,
+            EasyOpenPlatformText.cameraPermissionDenied,
             EasyOpenPlatformText.qrScannerStartFailed,
             EasyOpenPlatformText.close,
             EasyOpenPlatformText.nfcUnsupported,

@@ -1,5 +1,8 @@
 package com.juren233.easyopen.ui
 
+import com.juren233.easyopen.shared.resources.EasyOpenStrings
+
+
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -8,9 +11,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.unit.dp
-import com.juren233.easyopen.R
 import top.yukonga.miuix.kmp.basic.BasicComponent
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
@@ -27,7 +29,7 @@ internal fun PermissionGuidePage(
         topBar = {
             TopAppBar(
                 title = "",
-                largeTitle = stringResource(R.string.home_title),
+                largeTitle = stringResource(EasyOpenStrings.home_title),
             )
         },
     ) { innerPadding ->
@@ -39,7 +41,7 @@ internal fun PermissionGuidePage(
             ),
         ) {
             item {
-                SmallTitle(text = stringResource(R.string.first_use))
+                SmallTitle(text = stringResource(EasyOpenStrings.first_use))
             }
             item {
                 Card(
@@ -50,11 +52,11 @@ internal fun PermissionGuidePage(
                 ) {
                     Column {
                         BasicComponent(
-                            title = stringResource(R.string.bluetooth_permission_title),
-                            summary = stringResource(R.string.bluetooth_permission_summary),
+                            title = stringResource(EasyOpenStrings.bluetooth_permission_title),
+                            summary = stringResource(EasyOpenStrings.bluetooth_permission_summary),
                         )
                         MiuixTextButton(
-                            text = stringResource(R.string.grant_permission),
+                            text = stringResource(EasyOpenStrings.grant_permission),
                             onClick = onRequestPermissions,
                             modifier = Modifier
                                 .fillMaxWidth()

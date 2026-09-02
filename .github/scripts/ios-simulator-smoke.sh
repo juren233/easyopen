@@ -29,9 +29,17 @@ xcrun simctl boot "$simulator_udid"
 xcrun simctl bootstatus "$simulator_udid" -b
 
 ./gradlew --no-daemon --max-workers=2 --build-cache -PallowUnsigned=true \
-  :shared:linkDebugFrameworkIosSimulatorArm64
+  :shared:linkDebugFrameworkIosSimulatorArm64 \
+  :shared:iosSimulatorArm64AggregateResources
 
 test -d "$shared_simulator_framework"
+compose_resources_source="$workspace/shared/build/kotlin-multiplatform-resources/aggregated-resources/iosSimulatorArm64/composeResources"
+compose_resources_source_file="$compose_resources_source/easyopen.shared.generated.resources/values/strings.commonMain.cvr"
+compose_resources_source_xml="$workspace/shared/src/commonMain/composeResources/values/strings.xml"
+test -f "$compose_resources_source_file"
+bash "$workspace/.github/scripts/test-ios-compose-resources.sh" \
+  --resource-file "$compose_resources_source_file" \
+  --source-xml "$compose_resources_source_xml"
 # The checked-in hand-written project points its framework file reference at
 # iosArm64. The Simulator workflow uses a disposable checkout, so rewrite both
 # the file reference and search paths to the simulator framework before Xcode
@@ -63,6 +71,17 @@ test -d "$app_path"
 test -f "$app_path/Info.plist"
 plist_bundle_id="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$app_path/Info.plist")"
 test "$plist_bundle_id" = "com.juren233.easyopen.ios"
+/usr/libexec/PlistBuddy -c 'Print :NSCameraUsageDescription' "$app_path/Info.plist" >/dev/null
+test -n "$(/usr/libexec/PlistBuddy -c 'Print :NFCReaderUsageDescription' "$app_path/Info.plist")"
+
+compose_resources_dir="$app_path/compose-resources"
+mkdir -p "$compose_resources_dir"
+cp -R "$compose_resources_source/." "$compose_resources_dir/"
+final_compose_resource_file="$compose_resources_dir/composeResources/easyopen.shared.generated.resources/values/strings.commonMain.cvr"
+test -f "$final_compose_resource_file"
+bash "$workspace/.github/scripts/test-ios-compose-resources.sh" \
+  --resource-file "$final_compose_resource_file" \
+  --source-xml "$compose_resources_source_xml"
 
 xcrun simctl install "$simulator_udid" "$app_path"
 xcrun simctl launch "$simulator_udid" "$plist_bundle_id"

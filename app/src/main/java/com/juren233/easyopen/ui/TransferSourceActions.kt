@@ -1,14 +1,16 @@
 package com.juren233.easyopen.ui
 
+import com.juren233.easyopen.shared.resources.EasyOpenStrings
+
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import com.juren233.easyopen.R
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.TextButton as MiuixTextButton
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.unit.dp
 
 /** Consistent transfer-source actions for the initial and recognized states. */
@@ -27,7 +29,7 @@ internal fun TransferSourceActions(
     ) {
         if (recognized) {
             MiuixTextButton(
-                text = stringResource(R.string.rescan_qr),
+                text = stringResource(EasyOpenStrings.rescan_qr),
                 onClick = onRescan,
                 enabled = !decoding,
                 modifier = Modifier.fillMaxWidth(),
@@ -36,7 +38,7 @@ internal fun TransferSourceActions(
         }
         MiuixTextButton(
             text = stringResource(
-                if (recognized) R.string.rescan_from_gallery else R.string.scan_from_gallery,
+                if (recognized) EasyOpenStrings.rescan_from_gallery else EasyOpenStrings.scan_from_gallery,
             ),
             onClick = onGallery,
             enabled = !decoding,
@@ -46,7 +48,7 @@ internal fun TransferSourceActions(
         if (allowBackupRestore) {
             MiuixTextButton(
                 text = stringResource(
-                    if (recognized) R.string.rescan_backup_file else R.string.restore_backup_file,
+                    if (recognized) EasyOpenStrings.rescan_backup_file else EasyOpenStrings.restore_backup_file,
                 ),
                 onClick = onRestoreFile,
                 enabled = !decoding,

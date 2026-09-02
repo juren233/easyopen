@@ -49,4 +49,5 @@ kotlin {
 
 compose.resources {
     generateResClass = always
+    publicResClass = true
 }

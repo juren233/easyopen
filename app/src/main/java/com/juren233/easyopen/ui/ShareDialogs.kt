@@ -1,5 +1,8 @@
 package com.juren233.easyopen.ui
 
+import com.juren233.easyopen.shared.resources.EasyOpenStrings
+
+
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -10,9 +13,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.unit.dp
-import com.juren233.easyopen.R
 import com.juren233.easyopen.data.DeviceProfile
 import com.juren233.easyopen.data.DeviceStore
 import com.juren233.easyopen.data.TransferCodec
@@ -34,13 +36,13 @@ internal fun ShareChooserDialog(
 ) {
     val allSelected = devices.isNotEmpty() && selectedAddresses.size == devices.size
     WindowDialog(
-        title = stringResource(R.string.share_opener_title),
+        title = stringResource(EasyOpenStrings.share_opener_title),
         show = true,
         onDismissRequest = onDismiss,
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             SwitchPreference(
-                title = stringResource(R.string.select_all),
+                title = stringResource(EasyOpenStrings.select_all),
                 checked = allSelected,
                 onCheckedChange = { checked ->
                     onSelectionChange(
@@ -64,7 +66,7 @@ internal fun ShareChooserDialog(
                 }
             }
             MiuixTextButton(
-                text = stringResource(R.string.generate_share_qr),
+                text = stringResource(EasyOpenStrings.generate_share_qr),
                 onClick = {
                     onConfirm(devices.filter { DeviceStore.normalizeAddress(it.address) in selectedAddresses })
                 },
@@ -85,7 +87,7 @@ internal fun ShareQrDialog(
         QrTransfer.createBitmap(TransferCodec.encodeShare(devices))
     }
     WindowDialog(
-        title = stringResource(R.string.share_qr_title),
+        title = stringResource(EasyOpenStrings.share_qr_title),
         show = true,
         onDismissRequest = onDismiss,
     ) {
@@ -96,15 +98,15 @@ internal fun ShareQrDialog(
         ) {
             Image(
                 bitmap = bitmap.asImageBitmap(),
-                contentDescription = stringResource(R.string.share_qr_content_description),
+                contentDescription = stringResource(EasyOpenStrings.share_qr_content_description),
                 modifier = Modifier.size(260.dp),
             )
             MiuixText(
-                text = stringResource(R.string.share_qr_summary, devices.size),
+                text = stringResource(EasyOpenStrings.share_qr_summary, devices.size),
                 modifier = Modifier.padding(horizontal = 8.dp),
             )
             MiuixTextButton(
-                text = stringResource(R.string.close),
+                text = stringResource(EasyOpenStrings.close),
                 onClick = onDismiss,
                 modifier = Modifier.fillMaxWidth(),
             )

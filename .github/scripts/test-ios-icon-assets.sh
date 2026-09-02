@@ -74,6 +74,8 @@ width, height = struct.unpack(">II", png[16:24])
 assert (width, height) == (1024, 1024), (width, height)
 
 assert plist.get("CFBundleIconName") == "AppIcon"
+assert plist.get("NSCameraUsageDescription"), "NSCameraUsageDescription is missing"
+assert plist.get("NFCReaderUsageDescription"), "NFCReaderUsageDescription is missing"
 for required in (
     "lastKnownFileType = folder.assetcatalog",
     "lastKnownFileType = folder.iconcomposer.icon",
