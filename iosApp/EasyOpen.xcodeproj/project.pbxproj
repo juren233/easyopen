@@ -188,7 +188,7 @@
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks");
 				MARKETING_VERSION = 1.1.0;
-				OTHER_LDFLAGS = ("$(inherited)", "-framework", EasyOpenShared, "-framework", CoreImage, "-framework", AVFoundation, "-framework", CoreNFC);
+				OTHER_LDFLAGS = ("$(inherited)", "-framework", EasyOpenShared, "-framework", CoreImage, "-framework", AVFoundation, "-framework", CoreNFC, "-framework", Vision);
 				PRODUCT_BUNDLE_IDENTIFIER = com.juren233.easyopen.ios;
 				PRODUCT_NAME = EasyOpen;
 				SWIFT_EMIT_LOC_STRINGS = NO;
@@ -213,7 +213,7 @@
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks");
 				MARKETING_VERSION = 1.1.0;
-				OTHER_LDFLAGS = ("$(inherited)", "-framework", EasyOpenShared, "-framework", CoreImage, "-framework", AVFoundation, "-framework", CoreNFC);
+				OTHER_LDFLAGS = ("$(inherited)", "-framework", EasyOpenShared, "-framework", CoreImage, "-framework", AVFoundation, "-framework", CoreNFC, "-framework", Vision);
 				PRODUCT_BUNDLE_IDENTIFIER = com.juren233.easyopen.ios;
 				PRODUCT_NAME = EasyOpen;
 				SWIFT_EMIT_LOC_STRINGS = NO;

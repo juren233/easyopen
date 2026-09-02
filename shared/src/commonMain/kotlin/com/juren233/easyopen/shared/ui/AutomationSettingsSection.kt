@@ -34,7 +34,7 @@ import easyopen.shared.generated.resources.auto_connect_signal_value_invalid
 import easyopen.shared.generated.resources.auto_unlock_on_app_open
 import easyopen.shared.generated.resources.cancel
 import easyopen.shared.generated.resources.save_settings
-import org.jetbrains.compose.resources.stringResource
+import com.juren233.easyopen.shared.resources.easyOpenStringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -61,16 +61,16 @@ fun AutomationSettingsSection(
     onCustomAutoConnectRssiChange: (Int) -> Unit,
 ) {
     val rangeOptions = listOf(
-        stringResource(Res.string.auto_connect_range_near),
-        stringResource(Res.string.auto_connect_range_moderate),
-        stringResource(Res.string.auto_connect_range_far),
-        stringResource(Res.string.auto_connect_range_custom),
+        easyOpenStringResource(Res.string.auto_connect_range_near),
+        easyOpenStringResource(Res.string.auto_connect_range_moderate),
+        easyOpenStringResource(Res.string.auto_connect_range_far),
+        easyOpenStringResource(Res.string.auto_connect_range_custom),
     )
     var showCustomRssiDialog by rememberSaveable { mutableStateOf(false) }
     var customRssiInput by rememberSaveable { mutableStateOf("") }
 
     Column {
-        SmallTitle(text = stringResource(Res.string.automation_category))
+        SmallTitle(text = easyOpenStringResource(Res.string.automation_category))
         Card(
             modifier = Modifier
                 .padding(horizontal = 12.dp)
@@ -81,12 +81,12 @@ fun AutomationSettingsSection(
                 verticalArrangement = Arrangement.spacedBy(0.dp),
             ) {
                 SwitchPreference(
-                    title = stringResource(Res.string.auto_unlock_on_app_open),
+                    title = easyOpenStringResource(Res.string.auto_unlock_on_app_open),
                     checked = settings.autoUnlockOnAppOpen,
                     onCheckedChange = onAutoUnlockOnAppOpenChange,
                 )
                 SwitchPreference(
-                    title = stringResource(Res.string.auto_connect_opener),
+                    title = easyOpenStringResource(Res.string.auto_connect_opener),
                     checked = settings.autoConnectEnabled,
                     onCheckedChange = onAutoConnectEnabledChange,
                 )
@@ -97,7 +97,7 @@ fun AutomationSettingsSection(
                 ) {
                     Column {
                         WindowDropdownPreference(
-                            title = stringResource(Res.string.auto_connect_range),
+                            title = easyOpenStringResource(Res.string.auto_connect_range),
                             items = rangeOptions,
                             selectedIndex = AutoConnectSettings.normalizeRange(settings.autoConnectRange),
                             onSelectedIndexChange = onAutoConnectRangeChange,
@@ -109,10 +109,10 @@ fun AutomationSettingsSection(
                             exit = fadeOut() + shrinkVertically(shrinkTowards = Alignment.Top),
                         ) {
                             ArrowPreference(
-                                title = stringResource(Res.string.auto_connect_signal_value),
+                                title = easyOpenStringResource(Res.string.auto_connect_signal_value),
                                 endActions = {
                                     MiuixText(
-                                        text = stringResource(
+                                        text = easyOpenStringResource(
                                             Res.string.auto_connect_signal_value_format,
                                             AutoConnectSettings.inputMagnitudeFor(settings.customAutoConnectRssi),
                                         ),
@@ -138,7 +138,7 @@ fun AutomationSettingsSection(
     if (showCustomRssiDialog) {
         val customMagnitude = customRssiInput.toIntOrNull()
         WindowDialog(
-            title = stringResource(Res.string.auto_connect_signal_value),
+            title = easyOpenStringResource(Res.string.auto_connect_signal_value),
             show = true,
             onDismissRequest = { showCustomRssiDialog = false },
         ) {
@@ -148,7 +148,7 @@ fun AutomationSettingsSection(
                     onValueChange = { value ->
                         customRssiInput = value.filter(Char::isDigit).take(3)
                     },
-                    label = stringResource(Res.string.auto_connect_signal_value_input),
+                    label = easyOpenStringResource(Res.string.auto_connect_signal_value_input),
                     modifier = Modifier.fillMaxWidth(),
                     maxLines = 1,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
@@ -158,12 +158,12 @@ fun AutomationSettingsSection(
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     MiuixTextButton(
-                        text = stringResource(Res.string.cancel),
+                        text = easyOpenStringResource(Res.string.cancel),
                         onClick = { showCustomRssiDialog = false },
                         modifier = Modifier.weight(1f),
                     )
                     MiuixTextButton(
-                        text = stringResource(Res.string.save_settings),
+                        text = easyOpenStringResource(Res.string.save_settings),
                         onClick = {
                             customMagnitude?.let { magnitude ->
                                 onCustomAutoConnectRssiChange(
@@ -181,7 +181,7 @@ fun AutomationSettingsSection(
                     customMagnitude !in AutoConnectSettings.MIN_RSSI_MAGNITUDE..AutoConnectSettings.MAX_RSSI_MAGNITUDE
                 ) {
                     MiuixText(
-                        text = stringResource(Res.string.auto_connect_signal_value_invalid),
+                        text = easyOpenStringResource(Res.string.auto_connect_signal_value_invalid),
                         color = Color(0xFFD32F2F),
                         fontSize = 14.sp,
                     )

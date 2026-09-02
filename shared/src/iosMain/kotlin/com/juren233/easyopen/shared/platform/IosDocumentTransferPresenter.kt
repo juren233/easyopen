@@ -13,16 +13,14 @@ import kotlinx.cinterop.useContents
 import platform.AVFoundation.AVCaptureConnection
 import platform.AVFoundation.AVCaptureDevice
 import platform.AVFoundation.AVCaptureDeviceInput
-import platform.AVFoundation.AVCaptureMetadataOutput
-import platform.AVFoundation.AVCaptureMetadataOutputObjectsDelegateProtocol
+import platform.AVFoundation.AVCaptureVideoDataOutput
+import platform.AVFoundation.AVCaptureVideoDataOutputSampleBufferDelegateProtocol
 import platform.AVFoundation.AVCaptureOutput
 import platform.AVFoundation.AVCaptureSession
 import platform.AVFoundation.AVCaptureSessionPresetHigh
 import platform.AVFoundation.AVCaptureVideoPreviewLayer
-import platform.AVFoundation.AVMetadataMachineReadableCodeObject
 import platform.AVFoundation.AVMediaTypeVideo
 import platform.AVFoundation.AVLayerVideoGravityResizeAspectFill
-import platform.AVFoundation.AVMetadataObjectTypeQRCode
 import platform.CoreGraphics.CGAffineTransformMakeScale
 import platform.CoreGraphics.CGRectGetHeight
 import platform.CoreGraphics.CGRectGetWidth
@@ -30,6 +28,13 @@ import platform.CoreGraphics.CGRectMake
 import platform.CoreImage.CIFilter
 import platform.CoreImage.CIFilterConstructorProtocol
 import platform.CoreImage.CIQRCodeGeneratorProtocol
+import platform.CoreMedia.CMSampleBufferGetImageBuffer
+import platform.CoreMedia.CMSampleBufferRef
+import platform.ImageIO.kCGImagePropertyOrientationRight
+import platform.Vision.VNBarcodeObservation
+import platform.Vision.VNDetectBarcodesRequest
+import platform.Vision.VNImageRequestHandler
+import platform.Vision.VNBarcodeSymbologyQR
 import platform.Foundation.NSData
 import platform.Foundation.NSSelectorFromString
 import platform.Foundation.NSURL
@@ -59,7 +64,10 @@ import platform.UIKit.UIDocumentPickerViewController
 import platform.UIKit.UINavigationController
 import platform.UIKit.UITabBarController
 import platform.darwin.NSObject
+import platform.darwin.dispatch_async
+import platform.darwin.dispatch_get_global_queue
 import platform.darwin.dispatch_get_main_queue
+import platform.darwin.dispatch_queue_create
 
 /**
  * Small UIKit bridge for iOS backup files.
@@ -97,9 +105,9 @@ internal object IosDocumentTransferPresenter {
     fun presentQrScanner(onPayload: (String) -> Unit) {
         val presenter = topViewController() ?: return
         // The final app bundle carries NSCameraUsageDescription. The scanner
-        // also configures metadata types only after its output is attached to
-        // the capture session; AVFoundation otherwise raises an Objective-C
-        // exception because QRCode is not available on the unattached output.
+        // uses AVCaptureVideoDataOutput + Vision and deliberately avoids
+        // AVCaptureMetadataOutput, whose QR metadata setter is the crash point
+        // observed in the affected iOS 27 build.
         presenter.presentViewController(
             QrScannerViewController(onPayload),
             animated = true,
@@ -167,57 +175,16 @@ internal object IosDocumentTransferPresenter {
     ) : UIViewController(nibName = null, bundle = null) {
         private var session: AVCaptureSession? = null
         private var previewLayer: AVCaptureVideoPreviewLayer? = null
-        private var metadataDelegate: MetadataDelegate? = null
+        private var videoOutput: AVCaptureVideoDataOutput? = null
+        private var videoDelegate: VideoFrameDelegate? = null
         private var closeButton: UIButton? = null
-        private var setupError: String? = null
         private var finished = false
+        private var setupStarted = false
+        private val captureQueue = dispatch_queue_create("com.juren233.easyopen.qr-capture", null)
 
         override fun viewDidLoad() {
             super.viewDidLoad()
             view.backgroundColor = UIColor.blackColor
-
-            val captureSession = AVCaptureSession()
-            val camera = AVCaptureDevice.Companion.defaultDeviceWithMediaType(AVMediaTypeVideo)
-            val input = camera?.let { AVCaptureDeviceInput(device = it, error = null) }
-            if (input == null || !captureSession.canAddInput(input)) {
-                setupError = EasyOpenPlatformText.cameraUnavailable
-                return
-            }
-            captureSession.addInput(input)
-
-            val output = AVCaptureMetadataOutput()
-            if (!captureSession.canAddOutput(output)) {
-                setupError = EasyOpenPlatformText.qrScannerStartFailed
-                return
-            }
-            // AVCaptureMetadataOutput only exposes metadata types after it is
-            // attached to the session. Setting metadataObjectTypes first throws
-            // an Objective-C exception on iOS 27 instead of returning an error.
-            captureSession.addOutput(output)
-            if (!output.availableMetadataObjectTypes.contains(AVMetadataObjectTypeQRCode)) {
-                setupError = EasyOpenPlatformText.qrScannerStartFailed
-                return
-            }
-            val delegate = MetadataDelegate { payload ->
-                if (finished) return@MetadataDelegate
-                finished = true
-                captureSession.stopRunning()
-                dismissViewControllerAnimated(true) {
-                    onPayload(payload)
-                }
-            }
-            metadataDelegate = delegate
-            output.setMetadataObjectsDelegate(delegate, queue = dispatch_get_main_queue())
-            output.metadataObjectTypes = listOf(AVMetadataObjectTypeQRCode)
-            if (captureSession.canSetSessionPreset(AVCaptureSessionPresetHigh)) {
-                captureSession.sessionPreset = AVCaptureSessionPresetHigh
-            }
-            session = captureSession
-
-            val layer = AVCaptureVideoPreviewLayer(session = captureSession)
-            layer.videoGravity = AVLayerVideoGravityResizeAspectFill
-            previewLayer = layer
-            view.layer.addSublayer(layer)
 
             closeButton = UIButton.buttonWithType(UIButtonTypeSystem).apply {
                 setTitle(EasyOpenPlatformText.close, forState = UIControlStateNormal)
@@ -232,19 +199,80 @@ internal object IosDocumentTransferPresenter {
 
         override fun viewDidAppear(animated: Boolean) {
             super.viewDidAppear(animated)
-            setupError?.let { message ->
-                setupError = null
+            if (finished || setupStarted) return
+            setupStarted = true
+            setupCaptureSession()
+        }
+
+        private fun setupCaptureSession() {
+            val captureSession = AVCaptureSession()
+            val camera = AVCaptureDevice.Companion.defaultDeviceWithMediaType(AVMediaTypeVideo)
+            val input = camera?.let { AVCaptureDeviceInput(device = it, error = null) }
+            if (input == null || !captureSession.canAddInput(input)) {
+                failSetup(EasyOpenPlatformText.cameraUnavailable)
+                return
+            }
+
+            val output = AVCaptureVideoDataOutput()
+            if (!captureSession.canAddOutput(output)) {
+                failSetup(EasyOpenPlatformText.qrScannerStartFailed)
+                return
+            }
+
+            // Use Vision over video frames instead of AVCaptureMetadataOutput.
+            // The latter's metadataObjectTypes setter throws an Objective-C
+            // exception on the affected iOS 27 build even after addOutput().
+            val delegate = VideoFrameDelegate { payload ->
+                if (finished) return@VideoFrameDelegate
+                finished = true
+                captureSession.stopRunning()
+                dispatch_async(dispatch_get_main_queue()) {
+                    dismissViewControllerAnimated(true) {
+                        onPayload(payload)
+                    }
+                }
+            }
+            videoDelegate = delegate
+            output.alwaysDiscardsLateVideoFrames = true
+            output.setSampleBufferDelegate(delegate, captureQueue)
+
+            captureSession.beginConfiguration()
+            try {
+                if (captureSession.canSetSessionPreset(AVCaptureSessionPresetHigh)) {
+                    captureSession.sessionPreset = AVCaptureSessionPresetHigh
+                }
+                captureSession.addInput(input)
+                captureSession.addOutput(output)
+            } finally {
+                captureSession.commitConfiguration()
+            }
+
+            session = captureSession
+            videoOutput = output
+            val layer = AVCaptureVideoPreviewLayer(session = captureSession)
+            layer.videoGravity = AVLayerVideoGravityResizeAspectFill
+            previewLayer = layer
+            view.layer.insertSublayer(layer, atIndex = 0u)
+            // AVCaptureSession.startRunning() can block while the camera is
+            // being configured, so keep it off the main UI thread.
+            dispatch_async(dispatch_get_global_queue(0, 0uL)) {
+                if (!finished) captureSession.startRunning()
+            }
+        }
+
+        private fun failSetup(message: String) {
+            dispatch_async(dispatch_get_main_queue()) {
+                if (finished) return@dispatch_async
                 finished = true
                 dismissViewControllerAnimated(true) {
                     IosDocumentTransferPresenter.presentError(message)
                 }
-                return
             }
-            session?.startRunning()
         }
 
         override fun viewWillDisappear(animated: Boolean) {
             session?.stopRunning()
+            videoOutput?.setSampleBufferDelegate(null, null)
             super.viewWillDisappear(animated)
         }
 
@@ -260,24 +288,44 @@ internal object IosDocumentTransferPresenter {
         @Suppress("UNUSED_PARAMETER")
         fun closeScanner(sender: NSObject?) {
             finished = true
+            session?.stopRunning()
+            videoOutput?.setSampleBufferDelegate(null, null)
             dismissViewControllerAnimated(true, completion = null)
         }
     }
 
-    private class MetadataDelegate(
+    private class VideoFrameDelegate(
         private val onPayload: (String) -> Unit,
-    ) : NSObject(), AVCaptureMetadataOutputObjectsDelegateProtocol {
+    ) : NSObject(), AVCaptureVideoDataOutputSampleBufferDelegateProtocol {
+        private var requestInFlight = false
+        private val barcodeRequest = VNDetectBarcodesRequest { request, _ ->
+            val payload = request?.results
+                ?.filterIsInstance<VNBarcodeObservation>()
+                ?.firstNotNullOfOrNull { it.payloadStringValue }
+                ?.takeIf(String::isNotBlank)
+            requestInFlight = false
+            payload?.let(onPayload)
+        }.apply {
+            symbologies = listOf(VNBarcodeSymbologyQR)
+        }
+
         override fun captureOutput(
             output: AVCaptureOutput,
-            didOutputMetadataObjects: List<*>,
+            didOutputSampleBuffer: CMSampleBufferRef?,
             fromConnection: AVCaptureConnection,
         ) {
-            val payload = didOutputMetadataObjects
-                .filterIsInstance<AVMetadataMachineReadableCodeObject>()
-                .firstNotNullOfOrNull { it.stringValue }
-                ?.takeIf(String::isNotBlank)
-                ?: return
-            onPayload(payload)
+            if (requestInFlight) return
+            val pixelBuffer = didOutputSampleBuffer?.let(::CMSampleBufferGetImageBuffer) ?: return
+            requestInFlight = true
+            try {
+                VNImageRequestHandler(
+                    pixelBuffer,
+                    kCGImagePropertyOrientationRight,
+                    emptyMap<Any?, Any?>(),
+                ).performRequests(listOf(barcodeRequest), null)
+            } catch (_: Throwable) {
+                requestInFlight = false
+            }
         }
     }
 

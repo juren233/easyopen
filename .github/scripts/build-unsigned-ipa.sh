@@ -33,11 +33,32 @@ printf '%s\n' "iOS CFBundleVersion: $version_code"
 
 bash "$workspace/.github/scripts/test-ios-icon-assets.sh"
 
+compose_resources_source="$workspace/shared/build/kotlin-multiplatform-resources/aggregated-resources/iosArm64/composeResources"
+compose_resources_source_file="$compose_resources_source/easyopen.shared.generated.resources/values/strings.commonMain.cvr"
+compose_resources_source_xml="$workspace/shared/src/commonMain/composeResources/values/strings.xml"
+
 framework_started=$SECONDS
-./gradlew --no-daemon --max-workers=2 --build-cache -PallowUnsigned=true "$framework_task"
+./gradlew --no-daemon --max-workers=2 --no-build-cache --rerun-tasks \
+  -PallowUnsigned=true \
+  "$framework_task" \
+  :shared:iosArm64AggregateResources
 framework_seconds=$((SECONDS - framework_started))
 test -d "$framework_path"
-printf '%s\n' "Timing Kotlin/Native framework: ${framework_seconds}s"
+test -f "$compose_resources_source_file"
+bash "$workspace/.github/scripts/test-ios-compose-resources.sh" \
+  --resource-file "$compose_resources_source_file" \
+  --source-xml "$compose_resources_source_xml"
+
+# The iOS ResourceReader prefers a composeResources directory embedded in a
+# framework over the app-level directory. Stage the exact same aggregate in
+# the framework before Xcode archives it, preventing an old framework copy
+# from shadowing the current app resources.
+framework_compose_resources="$framework_path/composeResources"
+rm -rf "$framework_compose_resources"
+mkdir -p "$framework_compose_resources"
+cp -R "$compose_resources_source/." "$framework_compose_resources/"
+
+printf '%s\n' "Timing Kotlin/Native framework and resources: ${framework_seconds}s"
 
 archive_started=$SECONDS
 xcodebuild \
@@ -75,27 +96,11 @@ else
   dsym_name=""
 fi
 
-# Compose Multiplatform resources are not part of a static Kotlin/Native
-# framework's executable. This repository drives xcodebuild from a minimal
-# hand-written project, so copy the exact iOS aggregate produced by the same
-# Gradle build into the archived app. Do not invoke the plugin's Xcode sync
-# task here: outside an Xcode-managed Gradle invocation it has no outputDir,
-# and copying a stale/incomplete CVR can make stringResource() return mixed or
-# garbled text after a relaunch.
-compose_resources_source="$workspace/shared/build/kotlin-multiplatform-resources/aggregated-resources/iosArm64/composeResources"
-compose_resources_source_file="$compose_resources_source/easyopen.shared.generated.resources/values/strings.commonMain.cvr"
-compose_resources_source_xml="$workspace/shared/src/commonMain/composeResources/values/strings.xml"
-./gradlew --no-daemon --max-workers=2 --build-cache --rerun-tasks \
-  -PallowUnsigned=true \
-  :shared:iosArm64AggregateResources
-test -d "$compose_resources_source"
-test -f "$compose_resources_source_file"
-bash "$workspace/.github/scripts/test-ios-compose-resources.sh" \
-  --resource-file "$compose_resources_source_file" \
-  --source-xml "$compose_resources_source_xml"
-
+# Copy the same aggregate into the archived app as a fallback for the iOS
+# ResourceReader when no framework resource directory is present.
 compose_resources_dir="$app_path/compose-resources"
 compose_resources_destination="$compose_resources_dir/composeResources"
+rm -rf "$compose_resources_destination"
 mkdir -p "$compose_resources_destination"
 # The aggregate path already ends at composeResources. Keep that directory
 # level in the app bundle because the Compose iOS resource reader expects
@@ -107,6 +112,18 @@ test -f "$final_compose_resource_file"
 bash "$workspace/.github/scripts/test-ios-compose-resources.sh" \
   --resource-file "$final_compose_resource_file" \
   --source-xml "$compose_resources_source_xml"
+compose_resource_sha256="$(/usr/bin/shasum -a 256 "$compose_resources_source_file" | awk '{print $1}')"
+compose_resource_cvr_count=0
+while IFS= read -r cvr_file; do
+  test -n "$cvr_file"
+  bash "$workspace/.github/scripts/test-ios-compose-resources.sh" \
+    --resource-file "$cvr_file" \
+    --source-xml "$compose_resources_source_xml"
+  cvr_sha256="$(/usr/bin/shasum -a 256 "$cvr_file" | awk '{print $1}')"
+  test "$cvr_sha256" = "$compose_resource_sha256"
+  compose_resource_cvr_count=$((compose_resource_cvr_count + 1))
+done < <(find "$app_path" -type f -name 'strings.commonMain.cvr' -print | sort)
+test "$compose_resource_cvr_count" -gt 0
 compose_resource_files="$(find "$compose_resources_dir" -type f -print | wc -l | tr -d '[:space:]')"
 test "$compose_resource_files" -gt 0
 compose_resource_records="$(grep -c '^string|' "$final_compose_resource_file")"
@@ -171,6 +188,7 @@ fi
   printf 'compose_resource_files=%s\n' "$compose_resource_files"
   printf 'compose_resource_records=%s\n' "$compose_resource_records"
   printf 'compose_resource_sha256=%s\n' "$compose_resource_sha256"
+  printf 'compose_resource_cvr_count=%s\n' "$compose_resource_cvr_count"
   printf 'compose_source_xml_sha256=%s\n' "$compose_source_xml_sha256"
   printf '\nlinked_libraries:\n'
   /usr/bin/otool -L "$app_executable"
@@ -191,9 +209,17 @@ ipa_app_path="$(find "$ipa_check_root/Payload" -maxdepth 1 -type d -name '*.app'
 test -n "$ipa_app_path"
 final_ipa_resource_file="$ipa_app_path/compose-resources/composeResources/easyopen.shared.generated.resources/values/strings.commonMain.cvr"
 test -f "$final_ipa_resource_file"
-bash "$workspace/.github/scripts/test-ios-compose-resources.sh" \
-  --resource-file "$final_ipa_resource_file" \
-  --source-xml "$compose_resources_source_xml"
+final_ipa_cvr_count=0
+while IFS= read -r cvr_file; do
+  test -n "$cvr_file"
+  bash "$workspace/.github/scripts/test-ios-compose-resources.sh" \
+    --resource-file "$cvr_file" \
+    --source-xml "$compose_resources_source_xml"
+  cvr_sha256="$(/usr/bin/shasum -a 256 "$cvr_file" | awk '{print $1}')"
+  test "$cvr_sha256" = "$compose_resource_sha256"
+  final_ipa_cvr_count=$((final_ipa_cvr_count + 1))
+done < <(find "$ipa_app_path" -type f -name 'strings.commonMain.cvr' -print | sort)
+test "$final_ipa_cvr_count" -eq "$compose_resource_cvr_count"
 final_ipa_ios_version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$ipa_app_path/Info.plist")"
 final_ipa_version_code="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$ipa_app_path/Info.plist")"
 final_ipa_camera_usage="$(/usr/libexec/PlistBuddy -c 'Print :NSCameraUsageDescription' "$ipa_app_path/Info.plist" 2>/dev/null || true)"

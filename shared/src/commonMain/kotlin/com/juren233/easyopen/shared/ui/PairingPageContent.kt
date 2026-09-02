@@ -69,7 +69,7 @@ import easyopen.shared.generated.resources.searching
 import easyopen.shared.generated.resources.start_search
 import easyopen.shared.generated.resources.verifying
 import easyopen.shared.generated.resources.verify_and_pair
-import org.jetbrains.compose.resources.stringResource
+import com.juren233.easyopen.shared.resources.easyOpenStringResource
 import top.yukonga.miuix.kmp.basic.BasicComponent
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.Card
@@ -190,13 +190,13 @@ fun PairingPageContent(
         topBar = {
             TopAppBar(
                 title = if (showSettingsPage) {
-                    stringResource(Res.string.configure_opener_title)
+                    easyOpenStringResource(Res.string.configure_opener_title)
                 } else if (listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 32) {
-                    stringResource(Res.string.add_opener_title)
+                    easyOpenStringResource(Res.string.add_opener_title)
                 } else {
                     ""
                 },
-                largeTitle = stringResource(
+                largeTitle = easyOpenStringResource(
                     if (showSettingsPage) Res.string.configure_opener_title else Res.string.add_opener_title,
                 ),
                 scrollBehavior = scrollBehavior,
@@ -205,7 +205,7 @@ fun PairingPageContent(
                         IconButton(onClick = ::requestBack) {
                             Icon(
                                 imageVector = MiuixIcons.Back,
-                                contentDescription = stringResource(Res.string.back),
+                                contentDescription = easyOpenStringResource(Res.string.back),
                             )
                         }
                     }
@@ -216,7 +216,7 @@ fun PairingPageContent(
                             IconButton(onClick = openScanner) {
                                 Icon(
                                     imageVector = MiuixIcons.Scan,
-                                    contentDescription = stringResource(Res.string.scan_import_title),
+                                    contentDescription = easyOpenStringResource(Res.string.scan_import_title),
                                 )
                             }
                         }
@@ -237,7 +237,7 @@ fun PairingPageContent(
                         (slideOutHorizontally { it } + fadeOut())
                 }
             },
-            label = stringResource(Res.string.pairing_flow_page_transition),
+            label = easyOpenStringResource(Res.string.pairing_flow_page_transition),
         ) { settingsPage ->
             if (settingsPage) {
                 PairingSettingsPage(
@@ -282,13 +282,13 @@ fun PairingPageContent(
     if (!showSettingsPage) {
         selectedDevice?.let { device ->
             WindowDialog(
-                title = stringResource(Res.string.password_dialog_title),
+                title = easyOpenStringResource(Res.string.password_dialog_title),
                 show = true,
                 onDismissRequest = { if (!pairingInProgress) selectedDevice = null },
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     MiuixText(
-                        text = stringResource(Res.string.password_dialog_description, device.name),
+                        text = easyOpenStringResource(Res.string.password_dialog_description, device.name),
                         color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                     )
                     if (pairAttempted && errorMessage != null) {
@@ -297,7 +297,7 @@ fun PairingPageContent(
                     TextField(
                         value = password,
                         onValueChange = { password = it.filter(Char::isDigit).take(6) },
-                        label = stringResource(Res.string.password_field_label),
+                        label = easyOpenStringResource(Res.string.password_field_label),
                         modifier = Modifier.fillMaxWidth(),
                         maxLines = 1,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
@@ -305,7 +305,7 @@ fun PairingPageContent(
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                         MiuixTextButton(
-                            text = stringResource(Res.string.cancel),
+                            text = easyOpenStringResource(Res.string.cancel),
                             onClick = {
                             autoMatchDismissed = true
                             selectedDevice = null
@@ -314,7 +314,7 @@ fun PairingPageContent(
                             modifier = Modifier.weight(1f),
                         )
                         MiuixTextButton(
-                            text = stringResource(if (pairingInProgress) Res.string.verifying else Res.string.verify_and_pair),
+                            text = easyOpenStringResource(if (pairingInProgress) Res.string.verifying else Res.string.verify_and_pair),
                             onClick = {
                                 pairAttempted = true
                                 onPairRequested(
@@ -334,23 +334,23 @@ fun PairingPageContent(
 
     if (showDiscardSettingsDialog) {
         WindowDialog(
-            title = stringResource(Res.string.discard_settings_title),
+            title = easyOpenStringResource(Res.string.discard_settings_title),
             show = true,
             onDismissRequest = { showDiscardSettingsDialog = false },
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 MiuixText(
-                    text = stringResource(Res.string.discard_settings_message),
+                    text = easyOpenStringResource(Res.string.discard_settings_message),
                     color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                     MiuixTextButton(
-                        text = stringResource(Res.string.cancel),
+                        text = easyOpenStringResource(Res.string.cancel),
                         onClick = { showDiscardSettingsDialog = false },
                         modifier = Modifier.weight(1f),
                     )
                     MiuixTextButton(
-                        text = stringResource(Res.string.continue_action),
+                        text = easyOpenStringResource(Res.string.continue_action),
                         onClick = {
                             showDiscardSettingsDialog = false
                             showSettingsPage = false
@@ -389,7 +389,7 @@ private fun PairingDiscoveryContent(
         ),
     ) {
         if (pairedDevices.isNotEmpty()) {
-            item { SmallTitle(text = stringResource(Res.string.saved_openers)) }
+            item { SmallTitle(text = easyOpenStringResource(Res.string.saved_openers)) }
             item {
                 Card(
                     modifier = Modifier
@@ -401,7 +401,7 @@ private fun PairingDiscoveryContent(
                         pairedDevices.forEach { savedDevice ->
                             ArrowPreference(
                                 title = savedDevice.profile.name,
-                                summary = stringResource(
+                                summary = easyOpenStringResource(
                                     Res.string.saved_opener_summary,
                                     savedDevice.binding.displayIdentifier(),
                                 ),
@@ -422,7 +422,7 @@ private fun PairingDiscoveryContent(
                         .fillMaxWidth(),
                 ) {
                     BasicComponent(
-                        title = stringResource(Res.string.imported_opener_profile),
+                        title = easyOpenStringResource(Res.string.imported_opener_profile),
                         summary = importedProfile.name,
                     )
                 }
@@ -430,7 +430,7 @@ private fun PairingDiscoveryContent(
         }
         item {
             SmallTitle(
-                text = stringResource(
+                text = easyOpenStringResource(
                     if (existingDeviceCount == 0) Res.string.pair_opener_section
                     else Res.string.add_another_opener_section,
                 ),
@@ -445,18 +445,18 @@ private fun PairingDiscoveryContent(
             ) {
                 Column {
                     BasicComponent(
-                        title = stringResource(Res.string.search_nearby_openers),
+                        title = easyOpenStringResource(Res.string.search_nearby_openers),
                         summary = when {
-                            pairingInProgress -> stringResource(Res.string.pairing_password_in_progress)
-                            snapshot.operation == EasyOpenBleOperation.SCANNING -> stringResource(Res.string.searching)
+                            pairingInProgress -> easyOpenStringResource(Res.string.pairing_password_in_progress)
+                            snapshot.operation == EasyOpenBleOperation.SCANNING -> easyOpenStringResource(Res.string.searching)
                             errorMessage != null -> errorMessage
-                            snapshot.discoveredDevices.isEmpty() -> stringResource(Res.string.keep_opener_powered_nearby)
-                            else -> stringResource(Res.string.found_openers, snapshot.discoveredDevices.size)
+                            snapshot.discoveredDevices.isEmpty() -> easyOpenStringResource(Res.string.keep_opener_powered_nearby)
+                            else -> easyOpenStringResource(Res.string.found_openers, snapshot.discoveredDevices.size)
                         },
                     )
                     if (!bluetoothEnabled) {
                         MiuixTextButton(
-                            text = stringResource(Res.string.open_bluetooth_settings),
+                            text = easyOpenStringResource(Res.string.open_bluetooth_settings),
                             onClick = onOpenBluetoothSettings,
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -465,7 +465,7 @@ private fun PairingDiscoveryContent(
                         )
                     }
                     MiuixTextButton(
-                        text = stringResource(
+                        text = easyOpenStringResource(
                             if (snapshot.operation == EasyOpenBleOperation.SCANNING) Res.string.search_again
                             else Res.string.start_search,
                         ),
@@ -479,7 +479,7 @@ private fun PairingDiscoveryContent(
                 }
             }
         }
-        item { SmallTitle(text = stringResource(Res.string.search_results)) }
+        item { SmallTitle(text = easyOpenStringResource(Res.string.search_results)) }
         if (snapshot.discoveredDevices.isEmpty()) {
             item {
                 Card(
@@ -489,8 +489,8 @@ private fun PairingDiscoveryContent(
                         .fillMaxWidth(),
                 ) {
                     BasicComponent(
-                        title = stringResource(Res.string.no_opener_found),
-                        summary = stringResource(Res.string.no_opener_found_summary),
+                        title = easyOpenStringResource(Res.string.no_opener_found),
+                        summary = easyOpenStringResource(Res.string.no_opener_found_summary),
                     )
                 }
             }
@@ -506,7 +506,7 @@ private fun PairingDiscoveryContent(
                         snapshot.discoveredDevices.forEach { device ->
                             ArrowPreference(
                                 title = device.name,
-                                summary = stringResource(
+                                summary = easyOpenStringResource(
                                     Res.string.device_signal_summary,
                                     device.binding.displayIdentifier(),
                                     device.rssi,

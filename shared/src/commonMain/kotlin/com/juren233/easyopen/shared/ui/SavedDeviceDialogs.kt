@@ -21,7 +21,7 @@ import easyopen.shared.generated.resources.generate_share_qr
 import easyopen.shared.generated.resources.select_all
 import easyopen.shared.generated.resources.share_opener_title
 import easyopen.shared.generated.resources.switch_opener_dialog_title
-import org.jetbrains.compose.resources.stringResource
+import com.juren233.easyopen.shared.resources.easyOpenStringResource
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.TextButton as MiuixTextButton
 import top.yukonga.miuix.kmp.preference.ArrowPreference
@@ -38,7 +38,7 @@ fun SavedDeviceChooserDialog(
     onAddDevice: () -> Unit,
 ) {
     WindowDialog(
-        title = stringResource(Res.string.switch_opener_dialog_title),
+        title = easyOpenStringResource(Res.string.switch_opener_dialog_title),
         show = true,
         onDismissRequest = onDismiss,
     ) {
@@ -48,7 +48,7 @@ fun SavedDeviceChooserDialog(
                 ArrowPreference(
                     title = device.profile.name,
                     summary = if (identifier.equals(activeIdentifier, ignoreCase = true)) {
-                        stringResource(Res.string.current_device_summary, identifier)
+                        easyOpenStringResource(Res.string.current_device_summary, identifier)
                     } else {
                         identifier
                     },
@@ -56,8 +56,8 @@ fun SavedDeviceChooserDialog(
                 )
             }
             ArrowPreference(
-                title = stringResource(Res.string.add_opener_title),
-                summary = stringResource(Res.string.add_opener_dialog_summary),
+                title = easyOpenStringResource(Res.string.add_opener_title),
+                summary = easyOpenStringResource(Res.string.add_opener_dialog_summary),
                 onClick = onAddDevice,
             )
         }
@@ -78,13 +78,13 @@ fun SavedDeviceShareDialog(
     val allSelected = devices.isNotEmpty() && selectedDevices.size == devices.size
 
     WindowDialog(
-        title = stringResource(Res.string.share_opener_title),
+        title = easyOpenStringResource(Res.string.share_opener_title),
         show = true,
         onDismissRequest = onDismiss,
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             SwitchPreference(
-                title = stringResource(Res.string.select_all),
+                title = easyOpenStringResource(Res.string.select_all),
                 checked = allSelected,
                 onCheckedChange = { checked ->
                     onSelectionChange(if (checked) allIdentifiers else emptySet())
@@ -109,7 +109,7 @@ fun SavedDeviceShareDialog(
                 }
             }
             MiuixTextButton(
-                text = stringResource(Res.string.generate_share_qr),
+                text = easyOpenStringResource(Res.string.generate_share_qr),
                 onClick = { onConfirm(selectedDevices) },
                 enabled = selectedDevices.isNotEmpty(),
                 modifier = Modifier.fillMaxWidth(),

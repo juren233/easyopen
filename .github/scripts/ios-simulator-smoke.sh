@@ -28,7 +28,7 @@ simulator_udid="$(xcrun simctl create "$simulator_name" "$device_type_id" "$runt
 xcrun simctl boot "$simulator_udid"
 xcrun simctl bootstatus "$simulator_udid" -b
 
-./gradlew --no-daemon --max-workers=2 --build-cache -PallowUnsigned=true \
+./gradlew --no-daemon --max-workers=2 --no-build-cache --rerun-tasks -PallowUnsigned=true \
   :shared:linkDebugFrameworkIosSimulatorArm64 \
   :shared:iosSimulatorArm64AggregateResources
 
@@ -40,6 +40,14 @@ test -f "$compose_resources_source_file"
 bash "$workspace/.github/scripts/test-ios-compose-resources.sh" \
   --resource-file "$compose_resources_source_file" \
   --source-xml "$compose_resources_source_xml"
+
+# Keep the framework copy identical to the app-level copy. The iOS resource
+# reader prefers framework/composeResources when it exists.
+framework_compose_resources="$shared_simulator_framework/EasyOpenShared.framework/composeResources"
+rm -rf "$framework_compose_resources"
+mkdir -p "$framework_compose_resources"
+cp -R "$compose_resources_source/." "$framework_compose_resources/"
+
 # The checked-in hand-written project points its framework file reference at
 # iosArm64. The Simulator workflow uses a disposable checkout, so rewrite both
 # the file reference and search paths to the simulator framework before Xcode
@@ -76,6 +84,7 @@ test -n "$(/usr/libexec/PlistBuddy -c 'Print :NFCReaderUsageDescription' "$app_p
 
 compose_resources_dir="$app_path/compose-resources"
 compose_resources_destination="$compose_resources_dir/composeResources"
+rm -rf "$compose_resources_destination"
 mkdir -p "$compose_resources_destination"
 # The aggregate path already ends at composeResources. Keep that directory
 # level in the app bundle because the Compose iOS resource reader expects
@@ -86,6 +95,17 @@ test -f "$final_compose_resource_file"
 bash "$workspace/.github/scripts/test-ios-compose-resources.sh" \
   --resource-file "$final_compose_resource_file" \
   --source-xml "$compose_resources_source_xml"
+compose_resource_sha256="$(shasum -a 256 "$compose_resources_source_file" | awk '{print $1}')"
+compose_resource_cvr_count=0
+while IFS= read -r cvr_file; do
+  test -n "$cvr_file"
+  bash "$workspace/.github/scripts/test-ios-compose-resources.sh" \
+    --resource-file "$cvr_file" \
+    --source-xml "$compose_resources_source_xml"
+  test "$(shasum -a 256 "$cvr_file" | awk '{print $1}')" = "$compose_resource_sha256"
+  compose_resource_cvr_count=$((compose_resource_cvr_count + 1))
+done < <(find "$app_path" -type f -name 'strings.commonMain.cvr' -print | sort)
+test "$compose_resource_cvr_count" -gt 0
 
 xcrun simctl install "$simulator_udid" "$app_path"
 xcrun simctl launch "$simulator_udid" "$plist_bundle_id"

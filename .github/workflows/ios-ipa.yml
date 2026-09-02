@@ -77,10 +77,9 @@ jobs:
         if: steps.gate.outputs.skip != 'true'
         run: bash .github/scripts/test-ios-native-text.sh
 
-      - name: 验证 iOS 字体回退 Verify iOS Typography
+      - name: 验证 iOS 字符串回退 Verify iOS String Fallback
         if: steps.gate.outputs.skip != 'true'
-        run: bash .github/scripts/test-ios-typography.sh
-
+        run: bash .github/scripts/test-ios-string-fallback.sh
 
       - name: 验证版本转换 Version Mapping Test
         if: steps.gate.outputs.skip != 'true'
@@ -127,7 +126,6 @@ jobs:
             EasyOpen-iOS-build-metadata.txt
           if-no-files-found: error
           retention-days: 14
-
 
       - name: 上传 dSYM 诊断符号 Upload dSYM Symbols
         if: steps.gate.outputs.skip != 'true' && steps.build.outputs.dsym_name != ''

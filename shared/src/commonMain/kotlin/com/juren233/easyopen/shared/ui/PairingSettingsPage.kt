@@ -19,7 +19,7 @@ import easyopen.shared.generated.resources.lock_direction
 import easyopen.shared.generated.resources.open_duration
 import easyopen.shared.generated.resources.opener_name_optional
 import easyopen.shared.generated.resources.reverse
-import org.jetbrains.compose.resources.stringResource
+import com.juren233.easyopen.shared.resources.easyOpenStringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
@@ -65,12 +65,12 @@ fun PairingSettingsPage(
                     TextField(
                         value = name,
                         onValueChange = onNameChange,
-                        label = stringResource(Res.string.opener_name_optional),
+                        label = easyOpenStringResource(Res.string.opener_name_optional),
                         modifier = Modifier.fillMaxWidth(),
                         maxLines = 1,
                     )
                     MiuixText(
-                        text = stringResource(Res.string.lock_direction),
+                        text = easyOpenStringResource(Res.string.lock_direction),
                         fontSize = 14.sp,
                         color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                     )
@@ -79,7 +79,7 @@ fun PairingSettingsPage(
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         MiuixTextButton(
-                            text = stringResource(Res.string.forward),
+                            text = easyOpenStringResource(Res.string.forward),
                             onClick = { onAttributeChange(0) },
                             modifier = Modifier.weight(1f),
                             colors = if (attribute == 0) {
@@ -89,7 +89,7 @@ fun PairingSettingsPage(
                             },
                         )
                         MiuixTextButton(
-                            text = stringResource(Res.string.reverse),
+                            text = easyOpenStringResource(Res.string.reverse),
                             onClick = { onAttributeChange(1) },
                             modifier = Modifier.weight(1f),
                             colors = if (attribute == 1) {
@@ -103,16 +103,16 @@ fun PairingSettingsPage(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                        NumberField(stringResource(Res.string.open_duration), openTime, onOpenTimeChange, Modifier.weight(1f))
-                        NumberField(stringResource(Res.string.hold_duration), waitTime, onWaitTimeChange, Modifier.weight(1f))
-                        NumberField(stringResource(Res.string.close_duration), closeTime, onCloseTimeChange, Modifier.weight(1f))
+                        NumberField(easyOpenStringResource(Res.string.open_duration), openTime, onOpenTimeChange, Modifier.weight(1f))
+                        NumberField(easyOpenStringResource(Res.string.hold_duration), waitTime, onWaitTimeChange, Modifier.weight(1f))
+                        NumberField(easyOpenStringResource(Res.string.close_duration), closeTime, onCloseTimeChange, Modifier.weight(1f))
                     }
                 }
             }
         }
         item {
             MiuixTextButton(
-                text = stringResource(Res.string.complete_pairing),
+                text = easyOpenStringResource(Res.string.complete_pairing),
                 onClick = onComplete,
                 modifier = Modifier
                     .padding(horizontal = 12.dp)

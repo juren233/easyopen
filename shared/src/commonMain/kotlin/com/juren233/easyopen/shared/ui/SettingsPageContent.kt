@@ -23,7 +23,7 @@ import easyopen.shared.generated.resources.theme_color_title
 import easyopen.shared.generated.resources.theme_dark
 import easyopen.shared.generated.resources.theme_light
 import easyopen.shared.generated.resources.theme_system
-import org.jetbrains.compose.resources.stringResource
+import com.juren233.easyopen.shared.resources.easyOpenStringResource
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
@@ -58,19 +58,19 @@ fun SettingsPageContent(
 ) {
     val scrollBehavior = MiuixScrollBehavior()
     val themeOptions = listOf(
-        stringResource(Res.string.theme_system),
-        stringResource(Res.string.theme_light),
-        stringResource(Res.string.theme_dark),
+        easyOpenStringResource(Res.string.theme_system),
+        easyOpenStringResource(Res.string.theme_light),
+        easyOpenStringResource(Res.string.theme_dark),
     )
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = stringResource(Res.string.settings_title),
+                title = easyOpenStringResource(Res.string.settings_title),
                 scrollBehavior = scrollBehavior,
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(imageVector = MiuixIcons.Back, contentDescription = stringResource(Res.string.back))
+                        Icon(imageVector = MiuixIcons.Back, contentDescription = easyOpenStringResource(Res.string.back))
                     }
                 },
             )
@@ -83,7 +83,7 @@ fun SettingsPageContent(
                 bottom = innerPadding.calculateBottomPadding() + 24.dp,
             ),
         ) {
-            item { SmallTitle(text = stringResource(Res.string.personalization_category)) }
+            item { SmallTitle(text = easyOpenStringResource(Res.string.personalization_category)) }
             item {
                 Card(
                     modifier = Modifier
@@ -93,13 +93,13 @@ fun SettingsPageContent(
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
                         WindowDropdownPreference(
-                            title = stringResource(Res.string.theme_color_title),
+                            title = easyOpenStringResource(Res.string.theme_color_title),
                             items = themeOptions,
                             selectedIndex = settings.themeMode,
                             onSelectedIndexChange = onThemeModeChange,
                         )
                         SwitchPreference(
-                            title = stringResource(Res.string.monet_color_title),
+                            title = easyOpenStringResource(Res.string.monet_color_title),
                             checked = settings.monetEnabled,
                             onCheckedChange = onMonetChange,
                         )
@@ -116,7 +116,7 @@ fun SettingsPageContent(
                 )
             }
             if (showBackupActions) {
-                item { SmallTitle(text = stringResource(Res.string.data_category)) }
+                item { SmallTitle(text = easyOpenStringResource(Res.string.data_category)) }
                 item {
                     Card(
                         modifier = Modifier
@@ -126,11 +126,11 @@ fun SettingsPageContent(
                     ) {
                         Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
                             ArrowPreference(
-                                title = stringResource(Res.string.backup_title),
+                                title = easyOpenStringResource(Res.string.backup_title),
                                 onClick = onBackupRequested,
                             )
                             ArrowPreference(
-                                title = stringResource(Res.string.restore_title),
+                                title = easyOpenStringResource(Res.string.restore_title),
                                 onClick = onRestoreRequested,
                             )
                         }

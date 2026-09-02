@@ -62,7 +62,7 @@ import easyopen.shared.generated.resources.status_discovered
 import easyopen.shared.generated.resources.status_not_found
 import easyopen.shared.generated.resources.switch_opener
 import easyopen.shared.generated.resources.update_available_notice
-import org.jetbrains.compose.resources.stringResource
+import com.juren233.easyopen.shared.resources.easyOpenStringResource
 import top.yukonga.miuix.kmp.basic.BasicComponent
 import top.yukonga.miuix.kmp.basic.Button
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
@@ -116,10 +116,10 @@ fun HomePageContent(
     var closeTime by remember(activeProfile) { mutableStateOf(activeProfile.closeTimeMs.toString()) }
 
     val statusText = when (snapshot.connectionStatus) {
-        EasyOpenConnectionStatus.NOT_FOUND -> stringResource(Res.string.status_not_found)
-        EasyOpenConnectionStatus.DISCOVERED -> stringResource(Res.string.status_discovered)
-        EasyOpenConnectionStatus.CONNECTING -> stringResource(Res.string.status_connecting)
-        EasyOpenConnectionStatus.CONNECTED -> stringResource(Res.string.status_connected)
+        EasyOpenConnectionStatus.NOT_FOUND -> easyOpenStringResource(Res.string.status_not_found)
+        EasyOpenConnectionStatus.DISCOVERED -> easyOpenStringResource(Res.string.status_discovered)
+        EasyOpenConnectionStatus.CONNECTING -> easyOpenStringResource(Res.string.status_connecting)
+        EasyOpenConnectionStatus.CONNECTED -> easyOpenStringResource(Res.string.status_connected)
     }
 
     Scaffold(
@@ -127,14 +127,14 @@ fun HomePageContent(
             MiuixBlurredBar(backdrop, blurActive) {
                 TopAppBar(
                     color = barColor,
-                    title = stringResource(Res.string.home_title),
+                    title = easyOpenStringResource(Res.string.home_title),
                     scrollBehavior = scrollBehavior,
                     navigationIcon = {
                         if (showScannerAction) {
                             IconButton(onClick = onOpenScanner) {
                                 Icon(
                                     imageVector = MiuixIcons.Scan,
-                                    contentDescription = stringResource(Res.string.scan_import_title),
+                                    contentDescription = easyOpenStringResource(Res.string.scan_import_title),
                                 )
                             }
                         }
@@ -144,14 +144,14 @@ fun HomePageContent(
                             IconButton(onClick = onShareRequested) {
                                 Icon(
                                     imageVector = MiuixIcons.Share,
-                                    contentDescription = stringResource(Res.string.share_opener_title),
+                                    contentDescription = easyOpenStringResource(Res.string.share_opener_title),
                                 )
                             }
                         }
                         IconButton(onClick = onOpenSettings) {
                             Icon(
                                 imageVector = MiuixIcons.Settings,
-                                contentDescription = stringResource(Res.string.settings_title),
+                                contentDescription = easyOpenStringResource(Res.string.settings_title),
                             )
                         }
                     },
@@ -180,7 +180,7 @@ fun HomePageContent(
                                 .clickable(onClick = onUpdateRequested),
                         ) {
                             MiuixText(
-                                text = stringResource(Res.string.update_available_notice, update.displayVersion),
+                                text = easyOpenStringResource(Res.string.update_available_notice, update.displayVersion),
                                 fontSize = 13.sp,
                                 lineHeight = 18.sp,
                                 color = MiuixTheme.colorScheme.onSurface,
@@ -205,7 +205,7 @@ fun HomePageContent(
                     ) {
                         BasicComponent(
                             title = activeProfile.name,
-                            summary = stringResource(
+                            summary = easyOpenStringResource(
                                 Res.string.device_summary,
                                 activeDevice.identifierLabel,
                                 statusText,
@@ -213,7 +213,7 @@ fun HomePageContent(
                             ),
                             endActions = {
                                 MiuixTextButton(
-                                    text = stringResource(Res.string.switch_opener),
+                                    text = easyOpenStringResource(Res.string.switch_opener),
                                     onClick = onSwitchOpener,
                                     enabled = !snapshot.busy,
                                     colors = ButtonDefaults.textButtonColorsPrimary(),
@@ -235,9 +235,9 @@ fun HomePageContent(
                     ) {
                         MiuixText(
                             text = if (snapshot.busy) {
-                                stringResource(Res.string.status_connecting)
+                                easyOpenStringResource(Res.string.status_connecting)
                             } else {
-                                stringResource(Res.string.one_tap_unlock)
+                                easyOpenStringResource(Res.string.one_tap_unlock)
                             },
                             fontSize = 26.sp,
                             fontWeight = FontWeight.SemiBold,
@@ -254,7 +254,7 @@ fun HomePageContent(
                         colors = ButtonDefaults.buttonColors(),
                     ) {
                         MiuixText(
-                            text = stringResource(
+                            text = easyOpenStringResource(
                                 if (showSettings) Res.string.opener_settings_expanded
                                 else Res.string.opener_settings_collapsed,
                             ),
@@ -280,21 +280,21 @@ fun HomePageContent(
                                 TextField(
                                     value = name,
                                     onValueChange = { name = it },
-                                    label = stringResource(Res.string.opener_name),
+                                    label = easyOpenStringResource(Res.string.opener_name),
                                     modifier = Modifier.fillMaxWidth(),
                                     maxLines = 1,
                                 )
                                 TextField(
                                     value = password,
                                     onValueChange = { password = it.filter(Char::isDigit).take(6) },
-                                    label = stringResource(Res.string.password_field_settings),
+                                    label = easyOpenStringResource(Res.string.password_field_settings),
                                     modifier = Modifier.fillMaxWidth(),
                                     maxLines = 1,
                                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
                                     visualTransformation = PasswordVisualTransformation(),
                                 )
                                 MiuixText(
-                                    text = stringResource(Res.string.lock_direction),
+                                    text = easyOpenStringResource(Res.string.lock_direction),
                                     fontSize = 14.sp,
                                     color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                                 )
@@ -303,13 +303,13 @@ fun HomePageContent(
                                     modifier = Modifier.fillMaxWidth(),
                                 ) {
                                     MiuixTextButton(
-                                        text = stringResource(Res.string.forward),
+                                        text = easyOpenStringResource(Res.string.forward),
                                         onClick = { attribute = 0 },
                                         modifier = Modifier.weight(1f),
                                         colors = if (attribute == 0) ButtonDefaults.textButtonColorsPrimary() else ButtonDefaults.textButtonColors(),
                                     )
                                     MiuixTextButton(
-                                        text = stringResource(Res.string.reverse),
+                                        text = easyOpenStringResource(Res.string.reverse),
                                         onClick = { attribute = 1 },
                                         modifier = Modifier.weight(1f),
                                         colors = if (attribute == 1) ButtonDefaults.textButtonColorsPrimary() else ButtonDefaults.textButtonColors(),
@@ -319,13 +319,13 @@ fun HomePageContent(
                                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                                     modifier = Modifier.fillMaxWidth(),
                                 ) {
-                                    NumberField(stringResource(Res.string.open_duration), openTime, { openTime = it }, Modifier.weight(1f))
-                                    NumberField(stringResource(Res.string.hold_duration), waitTime, { waitTime = it }, Modifier.weight(1f))
-                                    NumberField(stringResource(Res.string.close_duration), closeTime, { closeTime = it }, Modifier.weight(1f))
+                                    NumberField(easyOpenStringResource(Res.string.open_duration), openTime, { openTime = it }, Modifier.weight(1f))
+                                    NumberField(easyOpenStringResource(Res.string.hold_duration), waitTime, { waitTime = it }, Modifier.weight(1f))
+                                    NumberField(easyOpenStringResource(Res.string.close_duration), closeTime, { closeTime = it }, Modifier.weight(1f))
                                 }
                                 if (showNfcAction) {
                                     MiuixTextButton(
-                                        text = stringResource(Res.string.nfc_write_title),
+                                        text = easyOpenStringResource(Res.string.nfc_write_title),
                                         onClick = onNfcWriteRequested,
                                         modifier = Modifier.fillMaxWidth(),
                                         colors = ButtonDefaults.textButtonColors(),
@@ -333,14 +333,14 @@ fun HomePageContent(
                                 }
                                 if (showNfcReadAction) {
                                     MiuixTextButton(
-                                        text = stringResource(Res.string.nfc_read_title),
+                                        text = easyOpenStringResource(Res.string.nfc_read_title),
                                         onClick = onNfcReadRequested,
                                         modifier = Modifier.fillMaxWidth(),
                                         colors = ButtonDefaults.textButtonColorsPrimary(),
                                     )
                                 }
                                 MiuixTextButton(
-                                    text = stringResource(Res.string.save_settings),
+                                    text = easyOpenStringResource(Res.string.save_settings),
                                     onClick = {
                                         onProfileChange(
                                             activeProfile.copy(

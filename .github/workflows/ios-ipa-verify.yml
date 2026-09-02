@@ -71,6 +71,9 @@ jobs:
       - name: 验证 iOS 原生文案 Verify iOS Native Text
         run: bash .github/scripts/test-ios-native-text.sh
 
+      - name: 验证 iOS 字符串回退 Verify iOS String Fallback
+        run: bash .github/scripts/test-ios-string-fallback.sh
+
       - name: 验证版本转换 Version Mapping Test
         run: bash .github/scripts/test-version-resolution.sh
 

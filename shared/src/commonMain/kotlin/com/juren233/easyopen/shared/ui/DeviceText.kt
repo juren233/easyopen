@@ -8,11 +8,11 @@ import easyopen.shared.generated.resources.battery_50
 import easyopen.shared.generated.resources.battery_75
 import easyopen.shared.generated.resources.battery_low
 import easyopen.shared.generated.resources.battery_unknown
-import org.jetbrains.compose.resources.stringResource
+import com.juren233.easyopen.shared.resources.easyOpenStringResource
 
 /** Shared localized battery description used by both platform hosts. */
 @Composable
-fun formatBatteryLevel(level: Int?): String = stringResource(
+fun formatBatteryLevel(level: Int?): String = easyOpenStringResource(
     when (level) {
         1 -> Res.string.battery_low
         2 -> Res.string.battery_25
