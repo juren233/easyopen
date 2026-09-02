@@ -1,23 +1,18 @@
-import SwiftUI
 import UIKit
 import EasyOpenShared
 
-private struct ComposeRootViewController: UIViewControllerRepresentable {
-    func makeUIViewController(context: Context) -> UIViewController {
-        IosMainViewControllerKt.MainViewController()
-    }
-
-    func updateUIViewController(_ uiViewController: UIViewController, context: Context) {}
-}
-
 @main
-struct EasyOpenIOSApp: App {
-    var body: some Scene {
-        WindowGroup {
-            ComposeRootViewController()
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(Color(uiColor: .systemBackground))
-                .ignoresSafeArea()
-        }
+final class EasyOpenAppDelegate: UIResponder, UIApplicationDelegate {
+    var window: UIWindow?
+
+    func application(
+        _ application: UIApplication,
+        didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil,
+    ) -> Bool {
+        let window = UIWindow(frame: UIScreen.main.bounds)
+        window.rootViewController = IosMainViewControllerKt.MainViewController()
+        self.window = window
+        window.makeKeyAndVisible()
+        return true
     }
 }

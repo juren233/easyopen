@@ -27,9 +27,9 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            implementation("org.jetbrains.compose.runtime:runtime:1.11.1")
-            implementation("org.jetbrains.compose.foundation:foundation:1.11.1")
-            implementation("org.jetbrains.compose.components:components-resources:1.11.1")
+            implementation("org.jetbrains.compose.runtime:runtime:1.12.0")
+            implementation("org.jetbrains.compose.foundation:foundation:1.12.0")
+            implementation("org.jetbrains.compose.components:components-resources:1.12.0")
             implementation("androidx.navigation3:navigation3-runtime:1.1.4")
             implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
             api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
