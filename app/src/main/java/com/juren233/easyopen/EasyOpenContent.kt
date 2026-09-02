@@ -117,10 +117,29 @@ internal fun EasyOpenContent(
 
     fun importDevices(imported: List<DeviceProfile>) {
         if (imported.isEmpty()) return
-        val merged = pairedDevices.filterNot { existing ->
-            imported.any { it.address.equals(existing.address, ignoreCase = true) }
-        } + imported
-        persistDevices(merged, imported.first().address)
+        val bound = imported.filter { it.address.isNotBlank() }
+        val unbound = imported.filter { it.address.isBlank() }
+        if (bound.isNotEmpty()) {
+            val merged = pairedDevices.filterNot { existing ->
+                bound.any { it.address.equals(existing.address, ignoreCase = true) }
+            } + bound
+            persistDevices(merged, bound.first().address)
+        } else if (pairedDevices.isEmpty()) {
+            // A cross-platform QR can intentionally omit the Android address.
+            // Keep the profile in the re-binding flow instead of persisting an
+            // unusable empty-address device as if it were already paired.
+            onboardingComplete = false
+            activeAddress = ""
+            DeviceStore.save(
+                preferences = preferences,
+                devices = emptyList(),
+                activeAddress = "",
+                onboardingComplete = false,
+            )
+        }
+        if (unbound.isNotEmpty()) {
+            pendingImportedProfiles = pendingImportedProfiles + unbound
+        }
     }
 
     fun applyRestoredBackup(snapshot: TransferCodec.BackupSnapshot) {
@@ -287,7 +306,7 @@ internal fun EasyOpenContent(
             onOpenBluetoothSettings = onOpenBluetoothSettings,
             onPaired = ::finishOnboardingPair,
             onImported = { imported ->
-                persistDevices(imported, imported.firstOrNull()?.address.orEmpty())
+                importDevices(imported)
             },
             onRestored = ::applyRestoredBackup,
         )
@@ -298,7 +317,7 @@ internal fun EasyOpenContent(
             onOpenBluetoothSettings = onOpenBluetoothSettings,
             onPaired = ::finishOnboardingPair,
             onImported = { imported ->
-                persistDevices(imported, imported.firstOrNull()?.address.orEmpty())
+                importDevices(imported)
             },
             onRestored = ::applyRestoredBackup,
         )

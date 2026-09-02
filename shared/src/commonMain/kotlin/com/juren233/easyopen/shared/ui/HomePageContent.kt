@@ -44,6 +44,7 @@ import easyopen.shared.generated.resources.hold_duration
 import easyopen.shared.generated.resources.home_title
 import easyopen.shared.generated.resources.lock_direction
 import easyopen.shared.generated.resources.nfc_write_title
+import easyopen.shared.generated.resources.nfc_read_title
 import easyopen.shared.generated.resources.one_tap_unlock
 import easyopen.shared.generated.resources.opener_name
 import easyopen.shared.generated.resources.opener_settings_collapsed
@@ -92,10 +93,12 @@ fun HomePageContent(
     onUnlock: () -> Unit,
     onProfileChange: (CoreDeviceProfile) -> Unit,
     onNfcWriteRequested: () -> Unit,
+    onNfcReadRequested: () -> Unit = {},
     onUpdateRequested: () -> Unit,
     showScannerAction: Boolean = true,
     showShareAction: Boolean = true,
     showNfcAction: Boolean = true,
+    showNfcReadAction: Boolean = false,
 ) {
     val activeDevice = snapshot.activeDevice
     val activeProfile = activeDevice.profile
@@ -319,6 +322,14 @@ fun HomePageContent(
                                         onClick = onNfcWriteRequested,
                                         modifier = Modifier.fillMaxWidth(),
                                         colors = ButtonDefaults.textButtonColors(),
+                                    )
+                                }
+                                if (showNfcReadAction) {
+                                    MiuixTextButton(
+                                        text = stringResource(Res.string.nfc_read_title),
+                                        onClick = onNfcReadRequested,
+                                        modifier = Modifier.fillMaxWidth(),
+                                        colors = ButtonDefaults.textButtonColorsPrimary(),
                                     )
                                 }
                                 MiuixTextButton(

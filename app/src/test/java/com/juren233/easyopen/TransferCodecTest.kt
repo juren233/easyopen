@@ -2,6 +2,8 @@ package com.juren233.easyopen
 
 import com.juren233.easyopen.data.DeviceProfile
 import com.juren233.easyopen.data.TransferCodec
+import com.juren233.easyopen.shared.model.CoreDeviceProfile
+import com.juren233.easyopen.shared.transfer.EasyOpenQrCodec
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertFalse
@@ -24,7 +26,7 @@ class TransferCodecTest {
     @Test
     fun sharePayload_isEncryptedAndRoundTrips() {
         val payload = TransferCodec.encodeShare(listOf(profile))
-        assertTrue(payload.startsWith("EASYOPEN-SHARE:2:"))
+        assertTrue(payload.startsWith("EASYOPEN-SHARE:3:"))
         assertTrue(payload.length < 180)
         assertTrue(!payload.contains(profile.password))
         assertEquals(listOf(profile), TransferCodec.decodeShare(payload))
@@ -76,6 +78,26 @@ class TransferCodecTest {
         assertNotNull(restored)
         assertEquals(profile.address, restored?.activeAddress)
         assertEquals(profile, restored?.devices?.single())
+    }
+
+    @Test
+    fun shareWithoutAndroidBinding_isAcceptedForRebinding() {
+        val unbound = CoreDeviceProfile(
+            name = "iOS garage",
+            password = "123456",
+            attribute = 0,
+            openTimeMs = 650,
+            waitTimeMs = 2_000,
+            closeTimeMs = 600,
+        )
+        val payload = EasyOpenQrCodec.encode(listOf(unbound))
+
+        val restored = TransferCodec.decodeShare(payload)
+
+        assertNotNull(restored)
+        assertEquals("iOS garage", restored?.single()?.name)
+        assertEquals("", restored?.single()?.address)
+        assertEquals(null, restored?.single()?.hardwareMac)
     }
 
     @Test

@@ -26,6 +26,8 @@
     <true/>
     <key>NSBluetoothAlwaysUsageDescription</key>
     <string>EasyOpen 需要蓝牙连接开门器。</string>
+    <key>NSCameraUsageDescription</key>
+    <string>EasyOpen 需要使用相机扫描开门器分享二维码。</string>
     <key>NFCReaderUsageDescription</key>
     <string>EasyOpen 需要读取 NFC 标签以执行开门操作。</string>
 </dict>

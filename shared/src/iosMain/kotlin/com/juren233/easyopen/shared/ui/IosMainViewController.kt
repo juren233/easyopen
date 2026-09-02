@@ -20,6 +20,7 @@ import com.juren233.easyopen.shared.navigation.EasyOpenRoute
 import com.juren233.easyopen.shared.platform.IosAvailableUpdate
 import com.juren233.easyopen.shared.platform.IosCoreBluetoothPort
 import com.juren233.easyopen.shared.platform.IosDocumentTransferPresenter
+import com.juren233.easyopen.shared.platform.IosNfcPresenter
 import com.juren233.easyopen.shared.platform.IosUpdateChecker
 import com.juren233.easyopen.shared.state.EasyOpenSavedDevice
 import com.juren233.easyopen.shared.state.HomeDeviceSnapshot
@@ -32,6 +33,7 @@ import com.juren233.easyopen.shared.state.upsertSavedDevice
 import com.juren233.easyopen.shared.storage.IosDeviceStore
 import com.juren233.easyopen.shared.storage.IosSettingsStore
 import com.juren233.easyopen.shared.transfer.EasyOpenBackupCodec
+import com.juren233.easyopen.shared.transfer.EasyOpenQrCodec
 import platform.Foundation.NSBundle
 import platform.Foundation.NSUserDefaults
 import platform.Foundation.NSURL
@@ -100,6 +102,34 @@ private fun IosRootContentBody(
     val activeDevice = activeSavedDevice(savedDevices, activeIdentifier)
     val effectiveBinding = activeDevice?.binding ?: DeviceBinding.IosPeripheral("")
     val effectiveProfile = activeDevice?.profile ?: CoreDeviceProfile()
+    var autoUnlockEvaluated by remember(currentRoute, activeIdentifier) { mutableStateOf(false) }
+
+    fun requestQrImport() {
+        IosDocumentTransferPresenter.presentQrScanner { payload ->
+            val profiles = EasyOpenQrCodec.decode(payload)
+            if (profiles.isNullOrEmpty()) {
+                IosDocumentTransferPresenter.presentError("二维码无效或不是 EasyOpen 分享码")
+            } else {
+                pendingImportedProfiles = profiles
+                navigator.navigate(EasyOpenRoute.AddDevice)
+            }
+        }
+    }
+
+    fun requestQrShare() {
+        if (savedDevices.isEmpty()) return
+        runCatching {
+            EasyOpenQrCodec.encode(savedDevices.map { it.profile })
+        }.onSuccess { payload ->
+            IosDocumentTransferPresenter.presentQrCode(
+                title = "分享开门器",
+                payload = payload,
+                summary = "已包含 ${savedDevices.size} 台开门器配置。请仅向可信设备展示此二维码。",
+            )
+        }.onFailure {
+            IosDocumentTransferPresenter.presentError("无法生成分享二维码，请检查开门器密码是否为 6 位数字")
+        }
+    }
 
     LaunchedEffect(Unit) {
         val currentVersionCode = NSBundle.mainBundle
@@ -110,13 +140,53 @@ private fun IosRootContentBody(
         availableUpdate = IosUpdateChecker.findUpdate(currentVersionCode)
     }
 
-    DisposableEffect(currentRoute) {
-        if (currentRoute != EasyOpenRoute.AddDevice) blePort.stopScan()
+    DisposableEffect(currentRoute, appSettings.autoConnectEnabled) {
+        if (currentRoute != EasyOpenRoute.Home && currentRoute != EasyOpenRoute.AddDevice) {
+            blePort.stopScan()
+        }
         onDispose { blePort.stopScan() }
     }
-    LaunchedEffect(currentRoute, activeIdentifier, bleSnapshot.bluetoothAvailable) {
-        if (currentRoute == EasyOpenRoute.Home && effectiveBinding.isUsable()) {
+    LaunchedEffect(
+        currentRoute,
+        activeIdentifier,
+        bleSnapshot.bluetoothAvailable,
+        bleSnapshot.discoveredDevices,
+        appSettings.autoConnectEnabled,
+        appSettings.autoConnectRssiThreshold,
+    ) {
+        if (
+            currentRoute != EasyOpenRoute.Home ||
+            !appSettings.autoConnectEnabled ||
+            !effectiveBinding.isUsable()
+        ) {
+            if (currentRoute == EasyOpenRoute.Home && !appSettings.autoConnectEnabled) {
+                blePort.stopScan()
+            }
+            return@LaunchedEffect
+        }
+        val expectedHardwareMac = effectiveProfile.hardwareMac
+        val nearbySavedDevice = bleSnapshot.discoveredDevices.firstOrNull { discovered ->
+            discovered.binding == effectiveBinding ||
+                (expectedHardwareMac != null &&
+                    discovered.hardwareMac.equals(expectedHardwareMac, ignoreCase = true))
+        }
+        if (nearbySavedDevice != null && nearbySavedDevice.rssi >= appSettings.autoConnectRssiThreshold) {
+            blePort.stopScan()
             blePort.connect(effectiveBinding, effectiveProfile)
+        } else {
+            blePort.startScan()
+        }
+    }
+    LaunchedEffect(
+        currentRoute,
+        activeIdentifier,
+        appSettings.autoUnlockOnAppOpen,
+        effectiveProfile.password,
+    ) {
+        if (currentRoute != EasyOpenRoute.Home || autoUnlockEvaluated) return@LaunchedEffect
+        autoUnlockEvaluated = true
+        if (appSettings.autoUnlockOnAppOpen && effectiveBinding.isUsable()) {
+            blePort.unlock(effectiveBinding, effectiveProfile)
         }
     }
 
@@ -187,6 +257,7 @@ private fun IosRootContentBody(
                             UIApplication.sharedApplication.openURL(url)
                         }
                     },
+                    onOpenScanner = ::requestQrImport,
                     onStartScan = blePort::startScan,
                     onStopScan = blePort::stopScan,
                     onPairRequested = { binding, pairingProfile ->
@@ -233,9 +304,9 @@ private fun IosRootContentBody(
                         HomeUpdateNotice(it.displayVersion)
                     },
                 ),
-                onOpenScanner = { navigator.navigate(EasyOpenRoute.AddDevice) },
+                onOpenScanner = ::requestQrImport,
                 onOpenSettings = { navigator.navigate(EasyOpenRoute.Settings) },
-                onShareRequested = { /* iOS QR export is the next platform adapter. */ },
+                onShareRequested = ::requestQrShare,
                 onSwitchOpener = { navigator.navigate(EasyOpenRoute.AddDevice) },
                 onUnlock = {
                     if (effectiveBinding.isUsable()) {
@@ -253,7 +324,29 @@ private fun IosRootContentBody(
                     }
                     IosDeviceStore.save(defaults, savedDevices, activeIdentifier)
                 },
-                onNfcWriteRequested = { /* Core NFC is intentionally separate. */ },
+                onNfcWriteRequested = {
+                    IosNfcPresenter.presentWrite { success, message ->
+                        if (!success && message != null) {
+                            IosDocumentTransferPresenter.presentError(message)
+                        }
+                    }
+                },
+                onNfcReadRequested = {
+                    var validUnlockPayload = false
+                    IosNfcPresenter.presentRead(
+                        onPayload = { validUnlockPayload = true },
+                        onFinished = { success, message ->
+                            when {
+                                success && validUnlockPayload && effectiveBinding.isUsable() -> {
+                                    blePort.unlock(effectiveBinding, effectiveProfile)
+                                }
+                                !success && message != null -> {
+                                    IosDocumentTransferPresenter.presentError(message)
+                                }
+                            }
+                        },
+                    )
+                },
                 onUpdateRequested = {
                     availableUpdate?.releaseUrl?.let { releaseUrl ->
                         NSURL.URLWithString(releaseUrl)?.let { url ->
@@ -261,9 +354,10 @@ private fun IosRootContentBody(
                         }
                     }
                 },
-                showScannerAction = false,
-                showShareAction = false,
-                showNfcAction = false,
+                showScannerAction = true,
+                showShareAction = true,
+                showNfcAction = true,
+                showNfcReadAction = true,
             )
         }
     }

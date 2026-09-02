@@ -7,6 +7,8 @@ import java.io.DataOutputStream
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 import java.security.SecureRandom
+import com.juren233.easyopen.shared.model.CoreDeviceProfile
+import com.juren233.easyopen.shared.transfer.EasyOpenQrCodec
 import com.juren233.easyopen.shared.transfer.EasyOpenTransferProfile
 import java.util.Base64
 import javax.crypto.Cipher
@@ -62,21 +64,13 @@ object TransferCodec {
      * field names. This keeps normal one-device QR codes at a low QR version
      * while preserving encryption and every opener setting.
      */
-    fun encodeShare(devices: List<DeviceProfile>): String {
-        require(devices.isNotEmpty()) { "At least one opener is required" }
-        require(devices.size <= MAX_SHARE_DEVICES) { "Too many openers for a share" }
-        val plaintext = ByteArrayOutputStream().use { byteStream ->
-            DataOutputStream(byteStream).use { output ->
-                output.writeByte(COMPACT_SHARE_VERSION)
-                output.writeByte(devices.size)
-                devices.forEach { writeCompactProfile(output, it) }
-            }
-            byteStream.toByteArray()
-        }
-        return encryptShare(plaintext)
-    }
+    fun encodeShare(devices: List<DeviceProfile>): String =
+        EasyOpenQrCodec.encode(devices.map { it.toCoreProfile() })
 
     fun decodeShare(payload: String): List<DeviceProfile>? {
+        if (EasyOpenQrCodec.isPayload(payload)) {
+            return EasyOpenQrCodec.decode(payload)?.map { it.toDeviceProfile() }
+        }
         return when {
             payload.startsWith(SHARE_PREFIX) -> decodeEncryptedShare(
                 payload.removePrefix(SHARE_PREFIX),
@@ -235,6 +229,32 @@ object TransferCodec {
             decodeProfiles(profiles.map { it.toTransferProfile() }).takeIf { it.isNotEmpty() }
         }
     }.getOrNull()
+
+    private fun DeviceProfile.toCoreProfile(): CoreDeviceProfile = CoreDeviceProfile(
+        name = name,
+        password = password,
+        attribute = attribute,
+        openTimeMs = openTimeMs,
+        waitTimeMs = waitTimeMs,
+        closeTimeMs = closeTimeMs,
+        batteryLevel = batteryLevel,
+        hardwareMac = DeviceStore.normalizeHardwareMac(hardwareMac ?: address),
+    )
+
+    private fun CoreDeviceProfile.toDeviceProfile(): DeviceProfile {
+        val hardwareMac = DeviceStore.normalizeHardwareMac(this.hardwareMac)
+        return DeviceProfile(
+            name = name.ifBlank { DeviceStore.DEFAULT_NAME },
+            address = hardwareMac.orEmpty(),
+            password = password,
+            attribute = attribute.coerceIn(0, 1),
+            openTimeMs = openTimeMs.coerceIn(0, 60_000),
+            waitTimeMs = waitTimeMs.coerceIn(0, 60_000),
+            closeTimeMs = closeTimeMs.coerceIn(0, 60_000),
+            batteryLevel = batteryLevel?.takeIf { it in 1..5 },
+            hardwareMac = hardwareMac,
+        )
+    }
 
     private fun DeviceProfile.toTransferProfile(): EasyOpenTransferProfile =
         EasyOpenTransferProfile.fromCoreProfile(

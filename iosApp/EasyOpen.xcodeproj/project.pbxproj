@@ -15,6 +15,7 @@
 		A10000000000000000000009 /* EasyOpen.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = EasyOpen.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A10000000000000000000006 /* EasyOpenApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EasyOpenApp.swift; sourceTree = "<group>"; };
 		A10000000000000000000007 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		A10000000000000000000015 /* EasyOpen.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = EasyOpen.entitlements; sourceTree = "<group>"; };
 		A10000000000000000000008 /* EasyOpenShared.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; name = EasyOpenShared.framework; path = ../shared/build/bin/iosArm64/releaseFramework/EasyOpenShared.framework; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
@@ -51,6 +52,7 @@
 			children = (
 				A10000000000000000000006 /* EasyOpenApp.swift */,
 				A10000000000000000000007 /* Info.plist */,
+				A10000000000000000000015 /* EasyOpen.entitlements */,
 				A10000000000000000000008 /* EasyOpenShared.framework */,
 			);
 			path = EasyOpen;
@@ -162,12 +164,13 @@
 				CODE_SIGNING_REQUIRED = NO;
 				CURRENT_PROJECT_VERSION = 1;
 				FRAMEWORK_SEARCH_PATHS = ("$(inherited)", "$(SRCROOT)/../shared/build/bin/iosArm64/debugFramework");
+				CODE_SIGN_ENTITLEMENTS = EasyOpen/EasyOpen.entitlements;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = EasyOpen/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks");
 				MARKETING_VERSION = 1.1.0;
-				OTHER_LDFLAGS = ("$(inherited)", "-framework", EasyOpenShared);
+				OTHER_LDFLAGS = ("$(inherited)", "-framework", EasyOpenShared, "-framework", CoreImage, "-framework", AVFoundation, "-framework", CoreNFC);
 				PRODUCT_BUNDLE_IDENTIFIER = com.juren233.easyopen.ios;
 				PRODUCT_NAME = EasyOpen;
 				SWIFT_EMIT_LOC_STRINGS = NO;
@@ -184,12 +187,13 @@
 				CODE_SIGNING_REQUIRED = NO;
 				CURRENT_PROJECT_VERSION = 1;
 				FRAMEWORK_SEARCH_PATHS = ("$(inherited)", "$(SRCROOT)/../shared/build/bin/iosArm64/releaseFramework");
+				CODE_SIGN_ENTITLEMENTS = EasyOpen/EasyOpen.entitlements;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = EasyOpen/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks");
 				MARKETING_VERSION = 1.1.0;
-				OTHER_LDFLAGS = ("$(inherited)", "-framework", EasyOpenShared);
+				OTHER_LDFLAGS = ("$(inherited)", "-framework", EasyOpenShared, "-framework", CoreImage, "-framework", AVFoundation, "-framework", CoreNFC);
 				PRODUCT_BUNDLE_IDENTIFIER = com.juren233.easyopen.ios;
 				PRODUCT_NAME = EasyOpen;
 				SWIFT_EMIT_LOC_STRINGS = NO;
