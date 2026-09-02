@@ -64,6 +64,10 @@ jobs:
       - name: 授权脚本 Grant Permission
         run: chmod +x gradlew .github/scripts/*.sh
 
+      - name: 验证 iOS 图标资源 Verify iOS App Icon
+        if: steps.gate.outputs.skip != 'true'
+        run: bash .github/scripts/test-ios-icon-assets.sh
+
       - name: 验证版本转换 Version Mapping Test
         run: bash .github/scripts/test-version-resolution.sh
 

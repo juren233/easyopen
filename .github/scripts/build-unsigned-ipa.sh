@@ -11,6 +11,8 @@ scheme="${XCODE_SCHEME:-EasyOpen}"
 configuration="${XCODE_CONFIGURATION:-Release}"
 framework_task="${FRAMEWORK_TASK:-:shared:linkReleaseFrameworkIosArm64}"
 framework_path="${FRAMEWORK_PATH:-$workspace/shared/build/bin/iosArm64/releaseFramework/EasyOpenShared.framework}"
+icon_bundle_path="$workspace/iosApp/EasyOpen/Resources/AppIcon.icon"
+icon_catalog_path="$workspace/iosApp/EasyOpen/Resources/Assets.xcassets/AppIcon.appiconset"
 run_token="${GITHUB_RUN_ID:-$$}"
 archive_root="${RUNNER_TEMP:-$workspace/.tmp}/easyopen-archives"
 payload_root="${RUNNER_TEMP:-$workspace/.tmp}/easyopen-payloads-$run_token"
@@ -28,6 +30,8 @@ mkdir -p "$archive_root" "$payload_dir"
 printf '%s\n' "Android display version: $full_name"
 printf '%s\n' "iOS CFBundleShortVersionString: $ios_version"
 printf '%s\n' "iOS CFBundleVersion: $version_code"
+
+bash "$workspace/.github/scripts/test-ios-icon-assets.sh"
 
 framework_started=$SECONDS
 ./gradlew --no-daemon --max-workers=2 --build-cache -PallowUnsigned=true "$framework_task"
@@ -97,10 +101,12 @@ test "$compose_resource_files" -gt 0
 
 actual_ios_version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app_path/Info.plist")"
 actual_version_code="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$app_path/Info.plist")"
+actual_icon_name="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIconName' "$app_path/Info.plist")"
 disable_minimum_frame_duration="$(/usr/libexec/PlistBuddy -c 'Print :CADisableMinimumFrameDurationOnPhone' "$app_path/Info.plist")"
 launch_screen_type="$(/usr/libexec/PlistBuddy -c 'Print :UILaunchScreen' "$app_path/Info.plist" 2>/dev/null || true)"
 test "$actual_ios_version" = "$ios_version"
 test "$actual_version_code" = "$version_code"
+test "$actual_icon_name" = "AppIcon"
 test "$disable_minimum_frame_duration" = "true"
 [[ "$launch_screen_type" == Dict* ]]
 if /usr/libexec/PlistBuddy -c 'Print :UILaunchStoryboardName' "$app_path/Info.plist" >/dev/null 2>&1; then
@@ -113,6 +119,7 @@ app_executable="$app_path/$app_executable_name"
 test -f "$app_executable"
 app_uuid="$(/usr/bin/dwarfdump --uuid "$app_executable" 2>/dev/null || true)"
 test -n "$app_uuid"
+test -f "$app_path/Assets.car"
 app_architectures="$(/usr/bin/lipo -archs "$app_executable")"
 framework_architectures="$(/usr/bin/lipo -archs "$framework_path/EasyOpenShared")"
 [[ " $app_architectures " == *" arm64 "* ]]
@@ -127,6 +134,8 @@ fi
   printf 'android_display_version=%s\n' "$full_name"
   printf 'ios_bundle_short_version=%s\n' "$actual_ios_version"
   printf 'ios_bundle_version=%s\n' "$actual_version_code"
+  printf 'CFBundleIconName=%s\n' "$actual_icon_name"
+  printf 'Assets.car=true\n'
   printf 'CADisableMinimumFrameDurationOnPhone=%s\n' "$disable_minimum_frame_duration"
   printf 'UILaunchScreen=%s\n' "$launch_screen_type"
   printf 'app_architectures=%s\n' "$app_architectures"

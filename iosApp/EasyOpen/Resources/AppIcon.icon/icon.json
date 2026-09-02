@@ -1,0 +1,36 @@
+{
+  "groups": [
+    {
+      "name": "EasyOpen background",
+      "layers": [
+        {
+          "name": "EasyOpen background",
+          "image-name": "Background.svg"
+        }
+      ]
+    },
+    {
+      "name": "EasyOpen foreground",
+      "layers": [
+        {
+          "name": "EasyOpen mark",
+          "image-name": "Foreground.svg",
+          "glass": true
+        }
+      ],
+      "lighting": "individual",
+      "shadow": {
+        "kind": "layer-color",
+        "opacity": 0.45
+      },
+      "specular": true,
+      "translucency": {
+        "enabled": true,
+        "value": 0.9
+      }
+    }
+  ],
+  "supported-platforms": {
+    "squares": "shared"
+  }
+}

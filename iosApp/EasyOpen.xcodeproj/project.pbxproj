@@ -9,6 +9,8 @@
 /* Begin PBXBuildFile section */
 		A1000000000000000000000A /* EasyOpenApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000006 /* EasyOpenApp.swift */; };
 		A1000000000000000000000B /* EasyOpenShared.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A10000000000000000000008 /* EasyOpenShared.framework */; };
+		A10000000000000000000019 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000016 /* Assets.xcassets */; };
+		A1000000000000000000001A /* AppIcon.icon in Resources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000017 /* AppIcon.icon */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -17,6 +19,8 @@
 		A10000000000000000000007 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A10000000000000000000015 /* EasyOpen.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = EasyOpen.entitlements; sourceTree = "<group>"; };
 		A10000000000000000000008 /* EasyOpenShared.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; name = EasyOpenShared.framework; path = ../shared/build/bin/iosArm64/releaseFramework/EasyOpenShared.framework; sourceTree = SOURCE_ROOT; };
+		A10000000000000000000016 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		A10000000000000000000017 /* AppIcon.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = AppIcon.icon; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -54,8 +58,18 @@
 				A10000000000000000000007 /* Info.plist */,
 				A10000000000000000000015 /* EasyOpen.entitlements */,
 				A10000000000000000000008 /* EasyOpenShared.framework */,
+				A10000000000000000000018 /* Resources */,
 			);
 			path = EasyOpen;
+			sourceTree = "<group>";
+		};
+		A10000000000000000000018 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				A10000000000000000000016 /* Assets.xcassets */,
+				A10000000000000000000017 /* AppIcon.icon */,
+			);
+			path = Resources;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -112,6 +126,8 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A10000000000000000000019 /* Assets.xcassets in Resources */,
+				A1000000000000000000001A /* AppIcon.icon in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -159,6 +175,8 @@
 		A10000000000000000000013 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGNING_ALLOWED = NO;
 				CODE_SIGNING_REQUIRED = NO;
@@ -182,6 +200,8 @@
 		A10000000000000000000014 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGNING_ALLOWED = NO;
 				CODE_SIGNING_REQUIRED = NO;

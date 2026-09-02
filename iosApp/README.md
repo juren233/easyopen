@@ -9,6 +9,7 @@
 - `.github/scripts/build-unsigned-ipa.sh` 通过 `xcodebuild archive CODE_SIGNING_ALLOWED=NO` 归档；随后显式执行 `:shared:syncComposeResourcesForIos`，把 `compose-resources/` 同步到归档 App，再手动打包 `Payload/*.app` 为未签名 `.ipa`。
 - iOS 宿主当前显式关闭 Compose 的 `parallelRendering`，让首帧渲染回到主线程；这是针对 iOS 27.0 真机首帧在 Compose 独立渲染线程上触发 `SIGABRT` 的稳定性保护，待真机回归通过后再评估恢复并行渲染。
 - iOS 宿主使用 Info.plist 的 `UILaunchScreen` 启动屏配置，不使用固定设备尺寸的 `LaunchScreen.storyboard`；这样不会把 iPhone 预览画布尺寸误认为运行时窗口尺寸。SwiftUI 容器同时使用最大尺寸和 `ignoresSafeArea()`，让 shared Compose 页面占满窗口。
+- iOS App 图标使用与 Android adaptive icon 相同的蓝底白色 EasyOpen 标记：`EasyOpen/Resources/AppIcon.icon` 是 Xcode 26/Icon Composer 的背景层 + 前景层分层图标，`EasyOpen/Resources/Assets.xcassets/AppIcon.appiconset` 提供 iOS 16+ 的静态 1024px 回退资源；Xcode 构建设置同时启用两者，避免旧系统没有分层图标支持时缺少 App Icon。
 - iOS 宿主现在与 Android 一样使用 shared `EasyOpenNavigator` 管理 Home、添加开门器和设置页面；无已保存设备的首启是不可返回的根页面，有已保存设备时添加开门器才可返回。
 - 已保存的 iOS 开门器进入主页后会按自动连接开关和 RSSI 阈值扫描，匹配到保存的 Peripheral UUID 或 Manufacturer Data 硬件 MAC 后再恢复 CoreBluetooth 连接；关闭自动连接时不会后台扫描。首次授权蓝牙时，如果首个扫描请求早于授权回调到达，扫描会在状态变为 powered on 后自动恢复。
 - iOS 主页分享按钮已使用 shared `EasyOpenQrCodec` 生成 `EASYOPEN-SHARE:3:` 加密二维码；二维码生成使用 CoreImage，扫描导入使用 AVFoundation，导入后进入 shared 配对页并优先按 `hardwareMac` 自动匹配，匹配不到时保留手动选择。Android 仍兼容旧 `EASYOPEN-SHARE:1/2` 载荷。Core NFC 写入入口已接入前台 NDEF reader session，并写入与 Android 相同的 EasyOpen MIME 内容；同时提供前台读取 NFC 并开门入口。iOS 不承诺 Android force-stop 式后台 NFC 分发。iOS 备份导出已经接入系统分享面板，备份导入已经接入系统文件选择器；恢复的配置会进入逐台重新配对流程，不会伪造或迁移 iOS Peripheral UUID。iOS 开门器密码已经使用 Keychain 保存，设备元数据仍使用 NSUserDefaults。
