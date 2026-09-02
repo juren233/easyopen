@@ -1,5 +1,6 @@
 package com.juren233.easyopen.shared.platform
 
+import com.juren233.easyopen.shared.text.EasyOpenPlatformText
 import kotlinx.cinterop.BetaInteropApi
 import kotlinx.cinterop.ByteVar
 import kotlinx.cinterop.ExperimentalForeignApi
@@ -108,7 +109,7 @@ internal object IosDocumentTransferPresenter {
     fun presentQrCode(title: String, payload: String, summary: String) {
         val presenter = topViewController() ?: return
         val image = createQrImage(payload) ?: run {
-            presentError("无法生成分享二维码")
+            presentError(EasyOpenPlatformText.qrGenerationFailed)
             return
         }
         presenter.presentViewController(
@@ -127,7 +128,7 @@ internal object IosDocumentTransferPresenter {
         )
         alert.addAction(
             UIAlertAction.actionWithTitle(
-                title = "确定",
+                title = EasyOpenPlatformText.confirm,
                 style = UIAlertActionStyleDefault,
                 handler = null,
             ),
@@ -177,14 +178,14 @@ internal object IosDocumentTransferPresenter {
             val camera = AVCaptureDevice.Companion.defaultDeviceWithMediaType(AVMediaTypeVideo)
             val input = camera?.let { AVCaptureDeviceInput(device = it, error = null) }
             if (input == null || !captureSession.canAddInput(input)) {
-                presentError("无法访问相机")
+                presentError(EasyOpenPlatformText.cameraUnavailable)
                 return
             }
             captureSession.addInput(input)
 
             val output = AVCaptureMetadataOutput()
             if (!captureSession.canAddOutput(output)) {
-                presentError("无法启动二维码扫描")
+                presentError(EasyOpenPlatformText.qrScannerStartFailed)
                 return
             }
             val delegate = MetadataDelegate { payload ->
@@ -210,7 +211,7 @@ internal object IosDocumentTransferPresenter {
             view.layer.addSublayer(layer)
 
             closeButton = UIButton.buttonWithType(UIButtonTypeSystem).apply {
-                setTitle("关闭", forState = UIControlStateNormal)
+                setTitle(EasyOpenPlatformText.close, forState = UIControlStateNormal)
                 setTitleColor(UIColor.whiteColor, forState = UIControlStateNormal)
                 addTarget(
                     target = this@QrScannerViewController,
@@ -294,7 +295,7 @@ internal object IosDocumentTransferPresenter {
                 numberOfLines = 0
             }
             closeButton = UIButton.buttonWithType(UIButtonTypeSystem).apply {
-                setTitle("关闭", forState = UIControlStateNormal)
+                setTitle(EasyOpenPlatformText.close, forState = UIControlStateNormal)
                 addTarget(
                     target = this@QrViewController,
                     action = NSSelectorFromString("closeQr:"),

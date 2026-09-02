@@ -1,5 +1,6 @@
 package com.juren233.easyopen.shared.platform
 
+import com.juren233.easyopen.shared.text.EasyOpenPlatformText
 import kotlinx.cinterop.BetaInteropApi
 import kotlinx.cinterop.ByteVar
 import kotlinx.cinterop.ExperimentalForeignApi
@@ -60,11 +61,11 @@ internal object IosNfcPresenter {
         onFinished: (Boolean, String?) -> Unit,
     ) {
         if (!NFCReaderSession.Companion.readingAvailable) {
-            onFinished(false, "当前设备不支持 Core NFC")
+            onFinished(false, EasyOpenPlatformText.nfcUnsupported)
             return
         }
         if (activeSession != null) {
-            onFinished(false, "已有 NFC 会话正在进行")
+            onFinished(false, EasyOpenPlatformText.nfcSessionAlreadyActive)
             return
         }
 
@@ -77,8 +78,8 @@ internal object IosNfcPresenter {
         activeDelegate = delegate
         activeSession = session
         session.alertMessage = when (mode) {
-            NfcMode.Read -> "请将 iPhone 靠近 EasyOpen NFC 标签"
-            NfcMode.Write -> "请将 iPhone 靠近要写入的 NFC 标签"
+            NfcMode.Read -> EasyOpenPlatformText.nfcReadPrompt
+            NfcMode.Write -> EasyOpenPlatformText.nfcWritePrompt
         }
         session.beginSession()
     }
@@ -94,21 +95,21 @@ internal object IosNfcPresenter {
                 return@queryNDEFStatusWithCompletionHandler
             }
             if (status == NFCNDEFStatusNotSupported) {
-                IosNfcPresenter.finish(session, false, "此 NFC 标签不支持 NDEF", onFinished)
+                IosNfcPresenter.finish(session, false, EasyOpenPlatformText.ndefUnsupported, onFinished)
                 return@queryNDEFStatusWithCompletionHandler
             }
             if (status == NFCNDEFStatusReadOnly) {
-                finish(session, false, "此 NFC 标签是只读标签", onFinished)
+                finish(session, false, EasyOpenPlatformText.nfcReadOnly, onFinished)
                 return@queryNDEFStatusWithCompletionHandler
             }
             val message = createUnlockMessage()
             if (message.length > capacity) {
-                finish(session, false, "NFC 标签空间不足", onFinished)
+                finish(session, false, EasyOpenPlatformText.nfcCapacityInsufficient, onFinished)
                 return@queryNDEFStatusWithCompletionHandler
             }
             tag.writeNDEF(message) { writeError ->
                 if (writeError == null) {
-                    session.alertMessage = "写入成功"
+                    session.alertMessage = EasyOpenPlatformText.nfcWriteSucceeded
                     finish(session, true, null, onFinished)
                 } else {
                     finish(session, false, writeError.localizedDescription, onFinished)
@@ -172,7 +173,7 @@ internal object IosNfcPresenter {
                 .filterIsInstance<NFCNDEFMessage>()
                 .firstNotNullOfOrNull(::parseMessage)
             if (payload == null) {
-                IosNfcPresenter.finish(session, false, "未找到 EasyOpen NFC 内容", onFinished)
+                IosNfcPresenter.finish(session, false, EasyOpenPlatformText.easyOpenNfcContentMissing, onFinished)
             } else {
                 onPayload(payload)
                 IosNfcPresenter.finish(session, true, null, onFinished)
@@ -187,7 +188,7 @@ internal object IosNfcPresenter {
             if (mode != NfcMode.Write) return
             val tag = didDetectTags.firstOrNull() as? NFCNDEFTagProtocol
             if (tag == null) {
-                IosNfcPresenter.finish(session, false, "此 NFC 标签不支持 NDEF", onFinished)
+                IosNfcPresenter.finish(session, false, EasyOpenPlatformText.ndefUnsupported, onFinished)
                 return
             }
             session.connectToTag(tag) { error ->

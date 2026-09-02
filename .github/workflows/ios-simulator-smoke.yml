@@ -58,5 +58,8 @@ jobs:
       - name: 验证 iOS 图标资源 Verify iOS App Icon
         run: bash .github/scripts/test-ios-icon-assets.sh
 
+      - name: 验证 iOS 原生文案 Verify iOS Native Text
+        run: bash .github/scripts/test-ios-native-text.sh
+
       - name: 执行 iOS Simulator Smoke
         run: bash .github/scripts/ios-simulator-smoke.sh

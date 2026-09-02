@@ -9,8 +9,6 @@ pbxproj="$workspace/iosApp/EasyOpen.xcodeproj/project.pbxproj"
 
 for path in \
   "$icon_bundle/icon.json" \
-  "$icon_bundle/Assets/Background.svg" \
-  "$icon_bundle/Assets/Foreground.svg" \
   "$icon_catalog/Contents.json" \
   "$icon_catalog/AppIcon-1024.png" \
   "$info_plist" \
@@ -26,26 +24,40 @@ import sys
 from pathlib import Path
 
 icon_json_path, catalog_json_path, png_path, plist_path, pbx_path = map(Path, sys.argv[1:])
-foreground_path = icon_json_path.parent / "Assets" / "Foreground.svg"
+assets_path = icon_json_path.parent / "Assets"
 icon = json.loads(icon_json_path.read_text(encoding="utf-8"))
 catalog = json.loads(catalog_json_path.read_text(encoding="utf-8"))
 plist = plistlib.loads(plist_path.read_bytes())
 pbx = pbx_path.read_text(encoding="utf-8")
-foreground = foreground_path.read_text(encoding="utf-8")
 
-assert len(icon.get("groups", [])) >= 2, "Icon Composer icon must contain background and foreground groups"
+assert icon.get("groups"), "Icon Composer icon must contain at least one layer group"
 layer_names = [
     layer.get("image-name")
     for group in icon["groups"]
     for layer in group.get("layers", [])
+    if layer.get("image-name")
 ]
-assert "Background.svg" in layer_names, "Icon Composer background layer is missing"
-assert "Foreground.svg" in layer_names, "Icon Composer foreground layer is missing"
-assert 'viewBox="0 0 1024 1024"' in foreground, "iOS foreground must use the full 1024px icon canvas"
-assert "scale(.60)" not in foreground and 'scaleX="0.60"' not in foreground, (
-    "Android adaptive-icon inset must not be copied to the iOS foreground"
+assert layer_names, "Icon Composer icon must reference at least one layer asset"
+available_assets = {path.name for path in assets_path.iterdir() if path.is_file()}
+assert set(layer_names).issubset(available_assets), (
+    f"Icon Composer layer asset is missing: {set(layer_names) - available_assets}"
 )
 assert icon.get("supported-platforms", {}).get("squares") == "shared"
+
+# Accept both the original explicit background/foreground SVG setup and the
+# Icon Composer representation exported by Xcode as one PNG layer plus an
+# automatic gradient fill. Both are valid layered icon inputs; the important
+# invariant is that every referenced asset exists and the foreground is not
+# silently dropped.
+foreground_path = assets_path / "Foreground.svg"
+if foreground_path.is_file():
+    foreground = foreground_path.read_text(encoding="utf-8")
+    assert 'viewBox="0 0 1024 1024"' in foreground, (
+        "iOS foreground must use the full 1024px icon canvas"
+    )
+    assert "scale(.60)" not in foreground and 'scaleX="0.60"' not in foreground, (
+        "Android adaptive-icon inset must not be copied to the iOS foreground"
+    )
 
 images = catalog.get("images", [])
 assert any(
@@ -70,5 +82,5 @@ for required in (
 ):
     assert required in pbx, f"Xcode icon wiring is missing: {required}"
 
-print("iOS layered App Icon assets are structurally valid")
+print("iOS Icon Composer and fallback App Icon assets are structurally valid")
 PY

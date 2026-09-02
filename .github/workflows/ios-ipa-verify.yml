@@ -68,6 +68,9 @@ jobs:
         if: steps.gate.outputs.skip != 'true'
         run: bash .github/scripts/test-ios-icon-assets.sh
 
+      - name: 验证 iOS 原生文案 Verify iOS Native Text
+        run: bash .github/scripts/test-ios-native-text.sh
+
       - name: 验证版本转换 Version Mapping Test
         run: bash .github/scripts/test-version-resolution.sh
 

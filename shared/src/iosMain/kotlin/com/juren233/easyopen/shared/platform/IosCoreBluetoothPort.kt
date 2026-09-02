@@ -1,5 +1,6 @@
 package com.juren233.easyopen.shared.platform
 
+import com.juren233.easyopen.shared.text.EasyOpenPlatformText
 import com.juren233.easyopen.shared.model.CoreDeviceProfile
 import com.juren233.easyopen.shared.model.DeviceBinding
 import com.juren233.easyopen.shared.protocol.EasyOpenAdvertisementParser
@@ -100,7 +101,7 @@ class IosCoreBluetoothPort(
                 operation = EasyOpenBleOperation.ERROR,
                 connectionStatus = EasyOpenConnectionStatus.NOT_FOUND,
                 bluetoothAvailable = false,
-                message = "请先打开蓝牙并允许 EasyOpen 使用蓝牙",
+                message = EasyOpenPlatformText.bluetoothPermissionRequired,
             )
             return
         }
@@ -177,7 +178,7 @@ class IosCoreBluetoothPort(
             ?.hardwareMac
         val discovered = EasyOpenBleDevice(
             binding = binding,
-            name = name?.trim().orEmpty().ifBlank { "YILA 开门器" },
+            name = name?.trim().orEmpty().ifBlank { EasyOpenPlatformText.defaultAdvertisedOpenerName },
             rssi = rssi,
             hardwareMac = hardwareMac ?: previousHardwareMac,
         )
@@ -314,7 +315,7 @@ private class IosCoreBluetoothDelegate(
             onConnectionChanged?.invoke(
                 DeviceBinding.IosPeripheral(identifier),
                 false,
-                "无法恢复已保存的 iOS 蓝牙设备，请重新扫描",
+                EasyOpenPlatformText.cannotRestoreSavedIosDevice,
             )
             return
         }
@@ -342,7 +343,7 @@ private class IosCoreBluetoothDelegate(
             onConnectionChanged?.invoke(
                 DeviceBinding.IosPeripheral(identifier),
                 false,
-                "无法恢复已保存的 iOS 蓝牙设备，请重新扫描",
+                EasyOpenPlatformText.cannotRestoreSavedIosDevice,
             )
             return
         }
@@ -366,7 +367,7 @@ private class IosCoreBluetoothDelegate(
             onConnectionChanged?.invoke(
                 DeviceBinding.IosPeripheral(identifier),
                 false,
-                "无法恢复已保存的 iOS 蓝牙设备，请重新扫描",
+                EasyOpenPlatformText.cannotRestoreSavedIosDevice,
             )
             return
         }
@@ -443,7 +444,7 @@ private class IosCoreBluetoothDelegate(
         onConnectionChanged?.invoke(
             DeviceBinding.IosPeripheral(identifier),
             false,
-            error?.localizedDescription ?: "iOS 蓝牙连接失败",
+            error?.localizedDescription ?: EasyOpenPlatformText.bluetoothConnectionFailed,
         )
     }
 
@@ -494,7 +495,7 @@ private class IosCoreBluetoothDelegate(
             onConnectionChanged?.invoke(
                 bindingFor(peripheral),
                 false,
-                "未找到开门器通信服务",
+                EasyOpenPlatformText.openerServiceMissing,
             )
             return
         }
@@ -553,7 +554,7 @@ private class IosCoreBluetoothDelegate(
             onConnectionChanged?.invoke(
                 bindingFor(peripheral),
                 false,
-                error?.localizedDescription ?: "启用开门器通知失败",
+                error?.localizedDescription ?: EasyOpenPlatformText.notificationEnableFailed,
             )
             return
         }
@@ -638,7 +639,7 @@ private class IosCoreBluetoothDelegate(
             onConnectionChanged?.invoke(
                 DeviceBinding.IosPeripheral(identifier),
                 false,
-                "iOS 蓝牙连接超时，请确认开门器在附近后重试",
+                EasyOpenPlatformText.bluetoothConnectionTimeout,
             )
         }
     }
@@ -660,7 +661,7 @@ private class IosCoreBluetoothDelegate(
             onConnectionChanged?.invoke(
                 DeviceBinding.IosPeripheral(identifier),
                 false,
-                "iOS 蓝牙服务发现超时，请确认开门器固件支持 EasyOpen 协议",
+                EasyOpenPlatformText.serviceDiscoveryTimeout,
             )
         }
     }
@@ -681,7 +682,7 @@ private class IosCoreBluetoothDelegate(
             onConnectionChanged?.invoke(
                 DeviceBinding.IosPeripheral(identifier),
                 false,
-                error.message ?: "iOS 蓝牙命令参数无效",
+                error.message ?: EasyOpenPlatformText.commandParametersInvalid,
             )
             return
         }
@@ -726,7 +727,7 @@ private class IosCoreBluetoothDelegate(
             onConnectionChanged?.invoke(
                 DeviceBinding.IosPeripheral(identifier),
                 false,
-                "iOS 蓝牙命令超时，请确认开门器在附近后重试",
+                EasyOpenPlatformText.commandTimeout,
             )
         }
     }

@@ -1,5 +1,6 @@
 package com.juren233.easyopen.shared.ui
 
+import com.juren233.easyopen.shared.text.EasyOpenPlatformText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -113,7 +114,7 @@ private fun IosRootContentBody(
         IosDocumentTransferPresenter.presentQrScanner { payload ->
             val profiles = EasyOpenQrCodec.decode(payload)
             if (profiles.isNullOrEmpty()) {
-                IosDocumentTransferPresenter.presentError("二维码无效或不是 EasyOpen 分享码")
+                IosDocumentTransferPresenter.presentError(EasyOpenPlatformText.invalidQr)
             } else {
                 pendingImportedProfiles = profiles
                 navigator.navigate(EasyOpenRoute.AddDevice)
@@ -127,12 +128,12 @@ private fun IosRootContentBody(
             EasyOpenQrCodec.encode(devices.map { it.profile })
         }.onSuccess { payload ->
             IosDocumentTransferPresenter.presentQrCode(
-                title = "分享开门器",
+                title = EasyOpenPlatformText.shareOpenerTitle,
                 payload = payload,
-                summary = "已包含 ${devices.size} 台开门器配置。请仅向可信设备展示此二维码。",
+                summary = EasyOpenPlatformText.shareQrSummary(devices.size),
             )
         }.onFailure {
-            IosDocumentTransferPresenter.presentError("无法生成分享二维码，请检查开门器密码是否为 6 位数字")
+            IosDocumentTransferPresenter.presentError(EasyOpenPlatformText.qrGenerationRequiresSixDigitPassword)
         }
     }
 
@@ -224,7 +225,7 @@ private fun IosRootContentBody(
                         val restored = raw?.let(EasyOpenBackupCodec::decode)
                         if (restored == null) {
                             if (raw != null) {
-                                IosDocumentTransferPresenter.presentError("无法读取 EasyOpen 备份文件")
+                                IosDocumentTransferPresenter.presentError(EasyOpenPlatformText.backupUnreadable)
                             }
                             return@presentBackupImport
                         }
@@ -297,7 +298,7 @@ private fun IosRootContentBody(
                         id = effectiveBinding.displayIdentifier(),
                         identifierLabel = effectiveBinding.displayIdentifier()
                             .takeIf(String::isNotBlank)
-                            ?: "未配对开门器",
+                            ?: EasyOpenPlatformText.unpairedOpener,
                         profile = effectiveProfile,
                     ),
                     connectionStatus = bleSnapshot.connectionStatus,

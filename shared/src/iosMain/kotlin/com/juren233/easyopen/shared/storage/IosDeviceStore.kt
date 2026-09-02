@@ -1,5 +1,6 @@
 package com.juren233.easyopen.shared.storage
 
+import com.juren233.easyopen.shared.text.EasyOpenPlatformText
 import com.juren233.easyopen.shared.model.CoreDeviceProfile
 import com.juren233.easyopen.shared.model.DeviceBinding
 import com.juren233.easyopen.shared.state.EasyOpenSavedDevice
@@ -133,7 +134,7 @@ internal object IosDeviceStore {
     }
 
     private fun loadLegacyProfile(defaults: NSUserDefaults): CoreDeviceProfile = CoreDeviceProfile(
-        name = defaults.stringForKey(LEGACY_PROFILE_PREFIX + "name") ?: "我的开门器",
+        name = defaults.stringForKey(LEGACY_PROFILE_PREFIX + "name") ?: EasyOpenPlatformText.defaultSavedOpenerName,
         password = defaults.stringForKey(LEGACY_PROFILE_PREFIX + "password") ?: "",
         attribute = defaults.integerForKey(LEGACY_PROFILE_PREFIX + "attribute").toInt(),
         openTimeMs = defaults.integerForKey(LEGACY_PROFILE_PREFIX + "openTimeMs").toInt().takeIf { it > 0 } ?: 650,
