@@ -1,9 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- EasyOpen foreground layer, derived from Android ic_launcher_foreground.xml. -->
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
-  <g transform="translate(256 256) scale(.60) translate(-256 -256)" fill="none" stroke="#FFFDFC" stroke-linecap="round">
-    <path d="M142 173H307A52 52 0 0 1 359 225V342A52 52 0 0 1 307 394H142A52 52 0 0 1 90 342V225A52 52 0 0 1 142 173Z" fill="#FFFDFC" stroke="none"/>
-    <path d="M350 103A85 85 0 0 1 435 188" stroke-width="17"/>
-    <path d="M345 143A52 52 0 0 1 397 195" stroke-width="17"/>
+<!--
+  EasyOpen foreground layer for Icon Composer.
+
+  Icon Composer applies the iOS icon crop/safe-area treatment itself. Keep the
+  artwork at its native size here instead of carrying over Android adaptive
+  icon's 0.60 inset; that inset made the iOS foreground visibly undersized.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <g fill="none" stroke="#FFFDFC" stroke-linecap="round">
+    <path d="M284 346H614A104 104 0 0 1 718 450V684A104 104 0 0 1 614 788H284A104 104 0 0 1 180 684V450A104 104 0 0 1 284 346Z" fill="#FFFDFC" stroke="none"/>
+    <path d="M700 206A170 170 0 0 1 870 376" stroke-width="34"/>
+    <path d="M690 286A104 104 0 0 1 794 390" stroke-width="34"/>
   </g>
 </svg>
