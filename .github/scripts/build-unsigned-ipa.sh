@@ -95,10 +95,14 @@ bash "$workspace/.github/scripts/test-ios-compose-resources.sh" \
   --source-xml "$compose_resources_source_xml"
 
 compose_resources_dir="$app_path/compose-resources"
-mkdir -p "$compose_resources_dir"
-cp -R "$compose_resources_source/." "$compose_resources_dir/"
-test -d "$compose_resources_dir/composeResources"
-final_compose_resource_file="$compose_resources_dir/composeResources/easyopen.shared.generated.resources/values/strings.commonMain.cvr"
+compose_resources_destination="$compose_resources_dir/composeResources"
+mkdir -p "$compose_resources_destination"
+# The aggregate path already ends at composeResources. Keep that directory
+# level in the app bundle because the Compose iOS resource reader expects
+# compose-resources/composeResources/<module>/...
+cp -R "$compose_resources_source/." "$compose_resources_destination/"
+test -d "$compose_resources_destination"
+final_compose_resource_file="$compose_resources_destination/easyopen.shared.generated.resources/values/strings.commonMain.cvr"
 test -f "$final_compose_resource_file"
 bash "$workspace/.github/scripts/test-ios-compose-resources.sh" \
   --resource-file "$final_compose_resource_file" \
