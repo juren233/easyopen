@@ -1,0 +1,62 @@
+name: iOS Simulator Smoke
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ios-simulator-smoke-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  smoke:
+    runs-on: macos-26
+    timeout-minutes: 40
+
+    steps:
+      - name: 拉取代码 Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: 安装 JDK Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: 缓存 Kotlin/Native 工具链 Cache Kotlin/Native Toolchain
+        uses: actions/cache@v6
+        with:
+          path: ~/.konan
+          key: ios-simulator-konan-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('build.gradle.kts', 'gradle.properties') }}
+          restore-keys: |
+            ios-simulator-konan-${{ runner.os }}-${{ runner.arch }}-
+
+      - name: 安装 Android SDK Setup Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          packages: platform-tools platforms;android-37.0 build-tools;37.0.0
+
+      - name: 配置 Gradle Setup Gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: wrapper
+          cache-read-only: true
+
+      - name: 检查 Xcode Check Xcode
+        run: bash .github/scripts/check-ios-toolchain.sh
+
+      - name: 授权脚本 Grant Permission
+        run: chmod +x gradlew .github/scripts/*.sh
+
+      - name: 验证 iOS 图标资源 Verify iOS App Icon
+        run: bash .github/scripts/test-ios-icon-assets.sh
+
+      - name: 执行 iOS Simulator Smoke
+        run: bash .github/scripts/ios-simulator-smoke.sh

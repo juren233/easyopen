@@ -38,3 +38,17 @@ private fun DeviceBinding.sameLocalIdentityAs(other: DeviceBinding): Boolean = w
         identifier.equals(other.identifier, ignoreCase = true)
     else -> false
 }
+/** Stable, case-insensitive local identities used by common selection UI. */
+fun savedDeviceIdentityKeys(devices: List<EasyOpenSavedDevice>): Set<String> =
+    devices.mapTo(linkedSetOf()) { it.binding.displayIdentifier().trim().uppercase() }
+
+/** Preserve storage order while applying a platform-neutral saved-device selection. */
+fun selectedSavedDevices(
+    devices: List<EasyOpenSavedDevice>,
+    selectedIdentifiers: Set<String>,
+): List<EasyOpenSavedDevice> {
+    val normalizedSelection = selectedIdentifiers.mapTo(hashSetOf()) { it.trim().uppercase() }
+    return devices.filter { device ->
+        device.binding.displayIdentifier().trim().uppercase() in normalizedSelection
+    }
+}

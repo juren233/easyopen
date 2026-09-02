@@ -30,4 +30,21 @@ class EasyOpenSavedDeviceTest {
         assertSame(first, activeSavedDevice(listOf(first, second), "missing"))
         assertSame(second, activeSavedDevice(listOf(first, second), "b2"))
     }
+
+    @Test
+    fun selectionUsesStableIdentifiersAndPreservesStorageOrder() {
+        assertEquals(setOf("A1", "B2"), savedDeviceIdentityKeys(listOf(first, second)))
+        assertEquals(
+            listOf(first, second),
+            selectedSavedDevices(listOf(first, second), setOf("b2", "a1")),
+        )
+    }
+
+    @Test
+    fun selectionIgnoresUnknownIdentifiers() {
+        assertEquals(
+            listOf(second),
+            selectedSavedDevices(listOf(first, second), setOf("unknown", "B2")),
+        )
+    }
 }

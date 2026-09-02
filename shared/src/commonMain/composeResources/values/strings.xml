@@ -42,6 +42,11 @@
     <string name="opener_settings_expanded">收起开门器设置</string>
     <string name="password_field_settings">开门器密码（6 位数字）</string>
     <string name="share_opener_title">分享开门器</string>
+    <string name="switch_opener_dialog_title">切换开门器</string>
+    <string name="current_device_summary">%1$s · 当前</string>
+    <string name="add_opener_dialog_summary">搜索并配对另一台开门器</string>
+    <string name="select_all">全选</string>
+    <string name="generate_share_qr">生成分享二维码</string>
     <string name="nfc_write_title">写入NFC标签</string>
     <string name="nfc_read_title">读取NFC并开门</string>
     <string name="lock_direction">拉锁方向</string>

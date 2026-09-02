@@ -15,17 +15,20 @@ import com.juren233.easyopen.data.DeviceProfile
 import com.juren233.easyopen.data.DeviceStore
 import com.juren233.easyopen.shared.model.CoreDeviceProfile
 import com.juren233.easyopen.shared.model.DeviceBinding
-import com.juren233.easyopen.shared.platform.EasyOpenBlePort
+import com.juren233.easyopen.shared.state.EasyOpenSavedDevice
 import com.juren233.easyopen.shared.state.HomeDeviceSnapshot
 import com.juren233.easyopen.shared.state.HomePageSnapshot
 import com.juren233.easyopen.shared.state.HomeUpdateNotice
 import com.juren233.easyopen.shared.state.displayIdentifier
+import com.juren233.easyopen.shared.state.savedDeviceIdentityKeys
 import com.juren233.easyopen.shared.ui.HomePageContent
+import com.juren233.easyopen.shared.ui.SavedDeviceChooserDialog
+import com.juren233.easyopen.shared.ui.SavedDeviceShareDialog
 import com.juren233.easyopen.utils.UpdateData
 
 @Composable
 internal fun HomePage(
-    blePort: EasyOpenBlePort,
+    blePort: com.juren233.easyopen.shared.platform.EasyOpenBlePort,
     devices: List<DeviceProfile>,
     activeProfileState: State<DeviceProfile>,
     activeAddress: String,
@@ -45,14 +48,20 @@ internal fun HomePage(
     var shareDevices by remember { mutableStateOf<List<DeviceProfile>?>(null) }
     var shareSelection by remember { mutableStateOf<Set<String>>(emptySet()) }
 
+    val savedDevices = devices.map { device ->
+        EasyOpenSavedDevice(
+            binding = DeviceBinding.AndroidMac(DeviceStore.normalizeAddress(device.address)),
+            profile = device.toCoreProfile(),
+        )
+    }
     val binding = DeviceBinding.AndroidMac(DeviceStore.normalizeAddress(activeProfile.address))
     val coreProfile = activeProfile.toCoreProfile()
 
     fun showShareUi() {
-        if (devices.size == 1) {
-            shareDevices = devices
+        if (savedDevices.size == 1) {
+            shareDevices = savedDevices.map(EasyOpenSavedDevice::toAndroidProfile)
         } else {
-            shareSelection = devices.map { DeviceStore.normalizeAddress(it.address) }.toSet()
+            shareSelection = savedDeviceIdentityKeys(savedDevices)
             showShareChooser = true
         }
     }
@@ -69,6 +78,7 @@ internal fun HomePage(
             busy = bleSnapshot.busy,
             canUnlock = bleSnapshot.canUnlock(binding, coreProfile),
             availableUpdate = availableUpdate?.let { HomeUpdateNotice(it.displayVersion) },
+            message = bleSnapshot.message,
         ),
         onOpenScanner = onOpenScanner,
         onOpenSettings = onOpenSettings,
@@ -87,13 +97,13 @@ internal fun HomePage(
     )
 
     if (showDeviceChooser) {
-        DeviceChooserDialog(
-            devices = devices,
-            activeAddress = activeAddress,
+        SavedDeviceChooserDialog(
+            devices = savedDevices,
+            activeIdentifier = activeAddress,
             onDismiss = { showDeviceChooser = false },
-            onSelect = { address ->
+            onSelect = { selected ->
                 showDeviceChooser = false
-                onActiveDeviceChange(address)
+                onActiveDeviceChange(selected.binding.displayIdentifier())
             },
             onAddDevice = {
                 showDeviceChooser = false
@@ -102,14 +112,14 @@ internal fun HomePage(
         )
     }
     if (showShareChooser) {
-        ShareChooserDialog(
-            devices = devices,
-            selectedAddresses = shareSelection,
+        SavedDeviceShareDialog(
+            devices = savedDevices,
+            selectedIdentifiers = shareSelection,
             onSelectionChange = { shareSelection = it },
             onDismiss = { showShareChooser = false },
             onConfirm = { selected ->
                 showShareChooser = false
-                shareDevices = selected
+                shareDevices = selected.map(EasyOpenSavedDevice::toAndroidProfile)
             },
         )
     }
@@ -119,6 +129,11 @@ internal fun HomePage(
             onDismiss = { shareDevices = null },
         )
     }
+}
+
+private fun EasyOpenSavedDevice.toAndroidProfile(): DeviceProfile {
+    val address = (binding as? DeviceBinding.AndroidMac)?.address.orEmpty()
+    return profile.toAndroidProfile(address)
 }
 
 private fun DeviceProfile.toCoreProfile(): CoreDeviceProfile = CoreDeviceProfile(

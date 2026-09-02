@@ -49,7 +49,7 @@ internal fun OnboardingNavigation(
         entryProvider<NavKey> {
             entry<EasyOpenRoute.OnboardingPairing> {
                 val profileKey = initialProfile?.let {
-                    "${it.name}:${it.password}:${it.attribute}:${it.openTimeMs}:${it.waitTimeMs}:${it.closeTimeMs}"
+                    "${it.name}:${it.password}:${it.attribute}:${it.openTimeMs}:${it.waitTimeMs}:${it.closeTimeMs}:${it.hardwareMac}"
                 } ?: "manual-pairing"
                 key(profileKey) {
                     PairingPage(

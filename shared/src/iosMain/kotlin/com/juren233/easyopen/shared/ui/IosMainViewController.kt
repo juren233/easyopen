@@ -9,6 +9,7 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.window.ComposeUIViewController
@@ -29,6 +30,7 @@ import com.juren233.easyopen.shared.state.HomeUpdateNotice
 import com.juren233.easyopen.shared.state.activeSavedDevice
 import com.juren233.easyopen.shared.state.displayIdentifier
 import com.juren233.easyopen.shared.state.isUsable
+import com.juren233.easyopen.shared.state.savedDeviceIdentityKeys
 import com.juren233.easyopen.shared.state.upsertSavedDevice
 import com.juren233.easyopen.shared.storage.IosDeviceStore
 import com.juren233.easyopen.shared.storage.IosSettingsStore
@@ -95,6 +97,9 @@ private fun IosRootContentBody(
     }
     var availableUpdate by remember { mutableStateOf<IosAvailableUpdate?>(null) }
     var pendingImportedProfiles by remember { mutableStateOf<List<CoreDeviceProfile>>(emptyList()) }
+    var showDeviceChooser by rememberSaveable { mutableStateOf(false) }
+    var showShareChooser by rememberSaveable { mutableStateOf(false) }
+    var shareSelection by remember { mutableStateOf<Set<String>>(emptySet()) }
     val initialRoute = if (savedDevices.isEmpty()) EasyOpenRoute.AddDevice else EasyOpenRoute.Home
     val backStack = remember { mutableStateListOf<androidx.navigation3.runtime.NavKey>(initialRoute) }
     val navigator = remember { EasyOpenNavigator(backStack) }
@@ -116,15 +121,15 @@ private fun IosRootContentBody(
         }
     }
 
-    fun requestQrShare() {
-        if (savedDevices.isEmpty()) return
+    fun requestQrShare(devices: List<EasyOpenSavedDevice>) {
+        if (devices.isEmpty()) return
         runCatching {
-            EasyOpenQrCodec.encode(savedDevices.map { it.profile })
+            EasyOpenQrCodec.encode(devices.map { it.profile })
         }.onSuccess { payload ->
             IosDocumentTransferPresenter.presentQrCode(
                 title = "分享开门器",
                 payload = payload,
-                summary = "已包含 ${savedDevices.size} 台开门器配置。请仅向可信设备展示此二维码。",
+                summary = "已包含 ${devices.size} 台开门器配置。请仅向可信设备展示此二维码。",
             )
         }.onFailure {
             IosDocumentTransferPresenter.presentError("无法生成分享二维码，请检查开门器密码是否为 6 位数字")
@@ -236,7 +241,7 @@ private fun IosRootContentBody(
             val importedProfile = pendingImportedProfiles.firstOrNull()
             key(
                 importedProfile?.let {
-                    "${it.name}:${it.password}:${it.openTimeMs}:${it.waitTimeMs}:${it.closeTimeMs}"
+                    "${it.name}:${it.password}:${it.openTimeMs}:${it.waitTimeMs}:${it.closeTimeMs}:${it.hardwareMac}"
                 } ?: "manual-pairing",
             ) {
                 PairingPageContent(
@@ -303,11 +308,19 @@ private fun IosRootContentBody(
                     availableUpdate = availableUpdate?.let {
                         HomeUpdateNotice(it.displayVersion)
                     },
+                    message = bleSnapshot.message,
                 ),
                 onOpenScanner = ::requestQrImport,
                 onOpenSettings = { navigator.navigate(EasyOpenRoute.Settings) },
-                onShareRequested = ::requestQrShare,
-                onSwitchOpener = { navigator.navigate(EasyOpenRoute.AddDevice) },
+                onShareRequested = {
+                    if (savedDevices.size == 1) {
+                        requestQrShare(savedDevices)
+                    } else {
+                        shareSelection = savedDeviceIdentityKeys(savedDevices)
+                        showShareChooser = true
+                    }
+                },
+                onSwitchOpener = { showDeviceChooser = true },
                 onUnlock = {
                     if (effectiveBinding.isUsable()) {
                         blePort.unlock(effectiveBinding, effectiveProfile)
@@ -359,6 +372,35 @@ private fun IosRootContentBody(
                 showNfcAction = true,
                 showNfcReadAction = true,
             )
+
+            if (showDeviceChooser) {
+                SavedDeviceChooserDialog(
+                    devices = savedDevices,
+                    activeIdentifier = activeIdentifier,
+                    onDismiss = { showDeviceChooser = false },
+                    onSelect = { selected ->
+                        showDeviceChooser = false
+                        activeIdentifier = selected.binding.displayIdentifier()
+                        IosDeviceStore.save(defaults, savedDevices, activeIdentifier)
+                    },
+                    onAddDevice = {
+                        showDeviceChooser = false
+                        navigator.navigate(EasyOpenRoute.AddDevice)
+                    },
+                )
+            }
+            if (showShareChooser) {
+                SavedDeviceShareDialog(
+                    devices = savedDevices,
+                    selectedIdentifiers = shareSelection,
+                    onSelectionChange = { shareSelection = it },
+                    onDismiss = { showShareChooser = false },
+                    onConfirm = { selected ->
+                        showShareChooser = false
+                        requestQrShare(selected)
+                    },
+                )
+            }
         }
     }
 }

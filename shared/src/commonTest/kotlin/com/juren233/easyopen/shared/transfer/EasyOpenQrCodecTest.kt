@@ -43,9 +43,12 @@ class EasyOpenQrCodecTest {
     @Test
     fun rejectsTamperedPayload() {
         val payload = EasyOpenQrCodec.encode(listOf(profile))
-        val last = payload.lastIndex
-        val replacement = if (payload[last] == 'A') 'B' else 'A'
+        val bodyStart = payload.lastIndexOf('.') + 1
+        check(bodyStart in 1 until payload.length)
+        val originalBody = payload.substring(bodyStart)
+        val replacement = if (originalBody.first() == 'A') 'B' else 'A'
+        val tampered = payload.substring(0, bodyStart) + replacement + originalBody.drop(1)
 
-        assertNull(EasyOpenQrCodec.decode(payload.substring(0, last) + replacement))
+        assertNull(EasyOpenQrCodec.decode(tampered))
     }
 }

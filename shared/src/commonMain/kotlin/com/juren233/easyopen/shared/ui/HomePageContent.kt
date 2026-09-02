@@ -189,6 +189,13 @@ fun HomePageContent(
                         }
                     }
                 }
+                snapshot.message
+                    ?.takeIf { snapshot.message.isNotBlank() }
+                    ?.let { message ->
+                        item(key = "operation_message") {
+                            StatusMessageCard(message = message)
+                        }
+                    }
                 item {
                     Card(
                         modifier = Modifier
