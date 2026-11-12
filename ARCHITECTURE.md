@@ -23,6 +23,8 @@
 - `app/src/main/java/com/juren233/easyopen/ble/`
   - `BleDoorController.kt`：Android 扫描、连接、配对、通知、重试和状态流。
   - `AndroidBlePort.kt`：将 Android BLE 状态和命令映射到 shared API。
+  - `BleScanStartBudget.kt`：按系统“每应用 30 秒最多 5 次 startScan”限额记录扫描启动，供三个扫描器共享。
+  - `BleOperationRetryPolicy.kt`：用户发起的开门/配对在连接阶段失败后，是否在 12 秒连接预算内自动重连的纯判定。
   - `OpenerConnectionState.kt`：主页四态连接快照（未发现、已发现、连接中、已连接）。
   - `OpenerConnectionPolicy.kt`：RSSI 自动连接阈值、信号新鲜度和自动重试冷却策略。
   - `UnlockProtocol.kt`：shared 协议核心的 Android 兼容 facade。
@@ -53,6 +55,11 @@ shared 页面只依赖平台无关快照和回调；页面不直接操作 GATT�
 - 目标广播先发布“已发现”；只有 RSSI 达到 `OpenerConnectionPolicy.AUTO_CONNECT_RSSI_THRESHOLD` 才自动连接。用户点击一键开门时可以绕过阈值立即连接。
 - 连接成功并完成服务/通知初始化后发布“已连接”；物理链路断开或连接准备失败后回到“未发现”/仍然新鲜的“已发现”，等待下一次目标广播。
 - 电量更新与目标广播在同一监视回调内完成，避免为了电量再开第二条扫描连接路径。
+- 扫描启动预算：Android 系统对每个应用限制 30 秒内最多 5 次 `startScan`，超限的启动不报错也没有结果。discovery、presence、battery 三个扫描器共用一个 `BleScanStartBudget`；预算不足时推迟启动而不是白白启动，周期性窗口轮换还要给事件触发的启动（连接结束、回前台、回主页）预留 2 次，预留不足就让当前扫描继续跑。
+- 开门请求可在任意状态发起：点击后立即进入“正在开门”，已就绪则直接发送，否则排队，链路就绪后再发送；`MainActivity.onCreate` 也会提前启动监视，不等首次组合。
+- 用户操作（开门/配对）在发出指令前连接失败，会在从点击起算的 12 秒连接预算内自动重连；指令一旦写出就不再重发，之后由 8 秒（开门）/13 秒（配对）响应超时接管。
+- 链路建立后的 MTU、服务发现和通知订阅有 5 秒就绪超时，超时按可重试的连接失败处理；Debug 包的特征读取在就绪之后进行，不再拖慢就绪。
+- GATT 回调统一通过主线程 Handler 投递，会话和控制器的可变状态只在主线程访问。
 
 ## 分享、扫码与应用设置模块
 

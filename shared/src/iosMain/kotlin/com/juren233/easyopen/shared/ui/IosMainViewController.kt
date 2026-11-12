@@ -304,6 +304,7 @@ private fun IosRootContentBody(
                     connectionStatus = bleSnapshot.connectionStatus,
                     batteryLevel = bleSnapshot.batteryLevel(effectiveBinding, effectiveProfile.batteryLevel),
                     busy = bleSnapshot.busy,
+                    unlocking = bleSnapshot.unlocking,
                     canUnlock = effectiveBinding.isUsable() &&
                         bleSnapshot.canUnlock(effectiveBinding, effectiveProfile),
                     availableUpdate = availableUpdate?.let {

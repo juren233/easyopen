@@ -11,21 +11,32 @@ class EasyOpenBleStateTest {
     private val profile = CoreDeviceProfile(password = "123456")
 
     @Test
-    fun discoveredOrConnectedDeviceCanUnlockWhenIdle() {
+    fun anyLinkStatusCanUnlockWhenIdle() {
+        EasyOpenConnectionStatus.entries.forEach { status ->
+            assertTrue(
+                EasyOpenBleSnapshot(connectionStatus = status).canUnlock(binding, profile),
+                status.name,
+            )
+        }
+    }
+
+    @Test
+    fun connectingOrNotFoundOperationStatesCanUnlock() {
         assertTrue(
             EasyOpenBleSnapshot(
-                connectionStatus = EasyOpenConnectionStatus.DISCOVERED,
+                operation = EasyOpenBleOperation.CONNECTING,
+                connectionStatus = EasyOpenConnectionStatus.CONNECTING,
             ).canUnlock(binding, profile),
         )
         assertTrue(
             EasyOpenBleSnapshot(
-                connectionStatus = EasyOpenConnectionStatus.CONNECTED,
+                connectionStatus = EasyOpenConnectionStatus.NOT_FOUND,
             ).canUnlock(binding, profile),
         )
     }
 
     @Test
-    fun unavailableBluetoothCannotUnlockEvenWhenLinkSnapshotLooksReady() {
+    fun unavailableBluetoothCannotUnlock() {
         assertFalse(
             EasyOpenBleSnapshot(
                 bluetoothAvailable = false,
@@ -35,12 +46,7 @@ class EasyOpenBleStateTest {
     }
 
     @Test
-    fun connectingBusyOrIncompleteProfileCannotUnlock() {
-        assertFalse(
-            EasyOpenBleSnapshot(
-                connectionStatus = EasyOpenConnectionStatus.CONNECTING,
-            ).canUnlock(binding, profile),
-        )
+    fun unlockingOrPairingOrIncompleteProfileCannotUnlock() {
         assertFalse(
             EasyOpenBleSnapshot(
                 operation = EasyOpenBleOperation.UNLOCKING,
@@ -49,8 +55,21 @@ class EasyOpenBleStateTest {
         )
         assertFalse(
             EasyOpenBleSnapshot(
+                operation = EasyOpenBleOperation.PAIRING,
+            ).canUnlock(binding, profile),
+        )
+        assertFalse(
+            EasyOpenBleSnapshot(
                 connectionStatus = EasyOpenConnectionStatus.CONNECTED,
             ).canUnlock(binding, profile.copy(password = "")),
+        )
+    }
+
+    @Test
+    fun unlockingFlagFollowsOperationOnly() {
+        assertTrue(EasyOpenBleSnapshot(operation = EasyOpenBleOperation.UNLOCKING).unlocking)
+        assertFalse(
+            EasyOpenBleSnapshot(connectionStatus = EasyOpenConnectionStatus.CONNECTING).unlocking,
         )
     }
 }

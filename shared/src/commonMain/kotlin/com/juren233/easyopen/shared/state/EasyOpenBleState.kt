@@ -60,6 +60,9 @@ data class EasyOpenBleSnapshot(
         get() = operation == EasyOpenBleOperation.UNLOCKING ||
             connectionStatus == EasyOpenConnectionStatus.CONNECTING
 
+    val unlocking: Boolean
+        get() = operation == EasyOpenBleOperation.UNLOCKING
+
     fun batteryLevel(binding: DeviceBinding, fallback: Int? = null): Int? =
         batteryLevels[binding] ?: fallback
 
@@ -67,11 +70,8 @@ data class EasyOpenBleSnapshot(
         bluetoothAvailable &&
             profile.password.isNotBlank() &&
             binding.isUsable() &&
-            connectionStatus in setOf(
-                EasyOpenConnectionStatus.DISCOVERED,
-                EasyOpenConnectionStatus.CONNECTED,
-            ) &&
-            !busy
+            operation != EasyOpenBleOperation.UNLOCKING &&
+            operation != EasyOpenBleOperation.PAIRING
 }
 
 fun DeviceBinding.isUsable(): Boolean = when (this) {

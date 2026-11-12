@@ -60,6 +60,7 @@ import easyopen.shared.generated.resources.status_connected
 import easyopen.shared.generated.resources.status_connecting
 import easyopen.shared.generated.resources.status_discovered
 import easyopen.shared.generated.resources.status_not_found
+import easyopen.shared.generated.resources.status_unlocking
 import easyopen.shared.generated.resources.switch_opener
 import easyopen.shared.generated.resources.update_available_notice
 import com.juren233.easyopen.shared.resources.easyOpenStringResource
@@ -227,8 +228,8 @@ fun HomePageContent(
                         colors = ButtonDefaults.buttonColorsPrimary(),
                     ) {
                         MiuixText(
-                            text = if (snapshot.busy) {
-                                easyOpenStringResource(Res.string.status_connecting)
+                            text = if (snapshot.unlocking) {
+                                easyOpenStringResource(Res.string.status_unlocking)
                             } else {
                                 easyOpenStringResource(Res.string.one_tap_unlock)
                             },

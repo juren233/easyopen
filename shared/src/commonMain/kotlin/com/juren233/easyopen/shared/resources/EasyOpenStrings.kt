@@ -166,6 +166,7 @@ import easyopen.shared.generated.resources.status_connecting
 import easyopen.shared.generated.resources.status_disconnected
 import easyopen.shared.generated.resources.status_discovered
 import easyopen.shared.generated.resources.status_not_found
+import easyopen.shared.generated.resources.status_unlocking
 import easyopen.shared.generated.resources.switch_opener
 import easyopen.shared.generated.resources.switch_opener_dialog_title
 import easyopen.shared.generated.resources.theme_color_title
@@ -505,6 +506,8 @@ object EasyOpenStrings {
         get() = Res.string.status_connected
     val status_connecting: StringResource
         get() = Res.string.status_connecting
+    val status_unlocking: StringResource
+        get() = Res.string.status_unlocking
     val status_disconnected: StringResource
         get() = Res.string.status_disconnected
     val status_discovered: StringResource

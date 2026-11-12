@@ -24,6 +24,7 @@ data class HomePageSnapshot(
     val connectionStatus: EasyOpenConnectionStatus = EasyOpenConnectionStatus.NOT_FOUND,
     val batteryLevel: Int? = null,
     val busy: Boolean = false,
+    val unlocking: Boolean = false,
     val canUnlock: Boolean = false,
     val availableUpdate: HomeUpdateNotice? = null,
 )

@@ -46,6 +46,7 @@ internal val easyOpenStringValues: Map<String, String> = mapOf(
     "update_available_notice" to "发现新版本 %1\$s，点击查看更新",
     "status_connected" to "已连接",
     "status_connecting" to "连接中",
+    "status_unlocking" to "正在开门",
     "status_discovered" to "已发现",
     "status_not_found" to "未发现",
     "device_summary" to "%1\$s\n%2\$s · %3\$s",

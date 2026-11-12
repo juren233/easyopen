@@ -25,6 +25,7 @@ import java.util.UUID
 internal sealed interface BleGattFailure {
     data object ConnectionStartFailed : BleGattFailure
     data object ConnectionTimeout : BleGattFailure
+    data object SetupTimeout : BleGattFailure
     data class UnexpectedDisconnect(val status: Int) : BleGattFailure
     data class ServicesFailed(val status: Int) : BleGattFailure
     data object ServiceMissing : BleGattFailure
@@ -44,7 +45,12 @@ internal interface BleGattSessionListener {
     fun onGattReleased(address: String, purpose: BleConnectionPurpose, reason: String)
 }
 
-/** Owns one BluetoothGatt instance and serializes connect, release, setup, and writes. */
+/**
+ * Owns one BluetoothGatt instance and serializes connect, release, setup, and writes.
+ *
+ * GATT callbacks are delivered on the main looper (see connect), so the session's and the
+ * controller's mutable state are only ever touched from the main thread.
+ */
 internal class BleGattSession(
     context: Context,
     private val listener: BleGattSessionListener,
@@ -54,6 +60,7 @@ internal class BleGattSession(
         private const val MAX_WRITE_RETRIES = 8
         private const val WRITE_RETRY_DELAY_MS = 200L
         private const val GATT_CONNECTION_TIMEOUT_MS = 8_000L
+        private const val GATT_SETUP_TIMEOUT_MS = 5_000L
         private const val RELEASE_WATCHDOG_MS = 1_500L
         private const val IDENTITY_READ_TIMEOUT_MS = 1_500L
         private const val MAX_IDENTITY_READS = 32
@@ -77,6 +84,9 @@ internal class BleGattSession(
     private var currentAddress: String? = null
     private var currentPurpose = BleConnectionPurpose.NONE
     private var connectionTimeout: Runnable? = null
+    private var setupTimeout: Runnable? = null
+    /** True once STATE_CONNECTED arrived; before that disconnect() produces no callback. */
+    private var linkEstablished = false
     private var releaseWatchdog: Runnable? = null
     private var writeRetry: Runnable? = null
     private var writeRetryCount = 0
@@ -104,7 +114,11 @@ internal class BleGattSession(
     fun consumeFreshAdvertisement(): Boolean = retryPolicy.consumeFreshAdvertisement()
 
     @SuppressLint("MissingPermission")
-    fun connect(address: String, purpose: BleConnectionPurpose): Boolean {
+    fun connect(
+        address: String,
+        purpose: BleConnectionPurpose,
+        scannedDevice: BluetoothDevice? = null,
+    ): Boolean {
         val normalizedAddress = address.trim().uppercase()
         if (!BluetoothAdapter.checkBluetoothAddress(normalizedAddress) ||
             !retryPolicy.beginConnect(requireFreshAdvertisement = purpose == BleConnectionPurpose.PREHEAT)
@@ -113,22 +127,28 @@ internal class BleGattSession(
         }
         currentAddress = normalizedAddress
         currentPurpose = purpose
+        linkEstablished = false
         cancelIdentityDiagnostics()
         readyNotified = false
         diagnostics.begin(normalizedAddress, purpose)
         diagnostics.log("connect_gatt_start")
-        val remote = runCatching { adapter?.getRemoteDevice(normalizedAddress) }.getOrNull()
+        // A scan result carries the right address type; a device rebuilt from the MAC string may not.
+        val remote = scannedDevice?.takeIf { it.address.equals(normalizedAddress, ignoreCase = true) }
+            ?: runCatching { adapter?.getRemoteDevice(normalizedAddress) }.getOrNull()
         if (remote == null) {
             handleFailure(BleGattFailure.ConnectionStartFailed)
             return false
         }
         listener.onLinkConnecting(normalizedAddress, purpose)
         gatt = runCatching {
-            if (Build.VERSION.SDK_INT >= 23) {
-                remote.connectGatt(appContext, false, callback, BluetoothDevice.TRANSPORT_LE)
-            } else {
-                remote.connectGatt(appContext, false, callback)
-            }
+            remote.connectGatt(
+                appContext,
+                false,
+                callback,
+                BluetoothDevice.TRANSPORT_LE,
+                BluetoothDevice.PHY_LE_1M_MASK,
+                mainHandler,
+            )
         }.getOrNull()
         val createdGatt = gatt
         diagnostics.log(
@@ -152,6 +172,8 @@ internal class BleGattSession(
 
     @SuppressLint("MissingPermission")
     fun write(packet: ByteArray): Boolean {
+        // The unlock command takes priority over debug-only characteristic reads.
+        cancelIdentityDiagnostics()
         val connection = gatt
         val characteristic = writeCharacteristic
         if (connection == null || characteristic == null || retryPolicy.phase != BleConnectionPhase.READY) {
@@ -201,6 +223,7 @@ internal class BleGattSession(
         releaseReason = reason
         waitForFreshAdvertisementAfterRelease = waitForFreshAdvertisement
         cancelConnectionTimeout()
+        cancelSetupTimeout()
         cancelWriteRetry()
         cancelDescriptorRetry()
         val currentGatt = gatt
@@ -210,6 +233,11 @@ internal class BleGattSession(
         }
         diagnostics.log("release_start", "reason=$reason gatt=${System.identityHashCode(currentGatt)}")
         runCatching { currentGatt.disconnect() }
+        if (!linkEstablished) {
+            // Cancelling a pending connectGatt never calls back, so do not wait for the watchdog.
+            completeRelease()
+            return
+        }
         releaseWatchdog?.let(mainHandler::removeCallbacks)
         releaseWatchdog = Runnable {
             releaseWatchdog = null
@@ -239,7 +267,9 @@ internal class BleGattSession(
         currentAddress = null
         currentPurpose = BleConnectionPurpose.NONE
         retryPolicy.reset()
+        linkEstablished = false
         cancelConnectionTimeout()
+        cancelSetupTimeout()
         cancelWriteRetry()
         cancelDescriptorRetry()
         cancelIdentityDiagnostics()
@@ -266,7 +296,9 @@ internal class BleGattSession(
         val reason = releaseReason
         releaseWatchdog?.let(mainHandler::removeCallbacks)
         releaseWatchdog = null
+        linkEstablished = false
         cancelConnectionTimeout()
+        cancelSetupTimeout()
         cancelWriteRetry()
         cancelDescriptorRetry()
         cancelIdentityDiagnostics()
@@ -305,6 +337,11 @@ internal class BleGattSession(
                 write(packet)
             }
         }.also { mainHandler.postDelayed(it, WRITE_RETRY_DELAY_MS) }
+    }
+
+    private fun cancelSetupTimeout() {
+        setupTimeout?.let(mainHandler::removeCallbacks)
+        setupTimeout = null
     }
 
     private fun cancelWriteRetry() {
@@ -375,19 +412,32 @@ internal class BleGattSession(
 
     private fun markReady() {
         if (readyNotified || identityReadInFlight != null) return
+        finishReady()
+        // Debug-only table reads run after ready so they never delay the unlock path.
         if (BuildConfig.DEBUG && identityReadQueue.isNotEmpty()) {
             diagnostics.log(
                 "identity_reads_start",
                 "count=${identityReadQueue.size}",
             )
             readNextIdentityCharacteristic()
-            return
         }
-        finishReady()
+    }
+
+    private fun startSetupTimeout(connection: BluetoothGatt, address: String, purpose: BleConnectionPurpose) {
+        cancelSetupTimeout()
+        setupTimeout = Runnable {
+            setupTimeout = null
+            if (gatt === connection && retryPolicy.phase == BleConnectionPhase.CONNECTING) {
+                diagnostics.log("setup_timeout", "timeoutMs=$GATT_SETUP_TIMEOUT_MS")
+                listener.onGattFailure(address, purpose, BleGattFailure.SetupTimeout)
+                release("setup_timeout")
+            }
+        }.also { mainHandler.postDelayed(it, GATT_SETUP_TIMEOUT_MS) }
     }
 
     private fun finishReady() {
         if (readyNotified) return
+        cancelSetupTimeout()
         readyNotified = true
         retryPolicy.markReady()
         diagnostics.log("ready")
@@ -396,16 +446,12 @@ internal class BleGattSession(
 
     @SuppressLint("MissingPermission")
     private fun readNextIdentityCharacteristic() {
-        if (!BuildConfig.DEBUG) {
-            finishReady()
-            return
-        }
+        if (!BuildConfig.DEBUG) return
         val connection = gatt
-        val next = if (identityReadQueue.isEmpty()) null else identityReadQueue.removeFirst()
-        if (connection == null || next == null || retryPolicy.phase == BleConnectionPhase.RELEASING) {
-            finishReady()
+        if (connection == null || identityReadQueue.isEmpty() || retryPolicy.phase != BleConnectionPhase.READY) {
             return
         }
+        val next = identityReadQueue.removeFirst()
         identityReadInFlight = next
         BleIdentityDiagnostics.logReadStart(currentAddress.orEmpty(), next)
         val accepted = runCatching { connection.readCharacteristic(next) }.getOrDefault(false)
@@ -495,6 +541,8 @@ internal class BleGattSession(
                     return
                 }
                 cancelConnectionTimeout()
+                linkEstablished = true
+                startSetupTimeout(gatt, address, currentPurpose)
                 listener.onLinkConnected(address, currentPurpose)
                 val priorityRequested = runCatching {
                     gatt.requestConnectionPriority(BluetoothGatt.CONNECTION_PRIORITY_HIGH)
@@ -519,6 +567,8 @@ internal class BleGattSession(
                     completeRelease()
                 } else {
                     listener.onGattFailure(address, currentPurpose, BleGattFailure.UnexpectedDisconnect(status))
+                    // The link is already gone, so no further callback will arrive to finish the release.
+                    linkEstablished = false
                     release("unexpected_disconnect", waitForFreshAdvertisement = true)
                 }
             }

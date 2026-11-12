@@ -16,6 +16,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.util.Log
 import androidx.core.content.ContextCompat
 import com.juren233.easyopen.BuildConfig
@@ -57,6 +58,11 @@ class BleDoorController(context: Context) {
         private const val PRESENCE_SCAN_WINDOW_MS = 8_000L
         /** Keep a foreground preheat link briefly across a transient app switch, then release it. */
         private const val BACKGROUND_RELEASE_GRACE_MS = 2_000L
+        private const val UNLOCK_RESPONSE_TIMEOUT_MS = 8_000L
+        private const val PAIRING_RESPONSE_TIMEOUT_MS = 13_000L
+
+        /** Longest an unlock can take: connect budget plus the wait for the opener's response. */
+        const val UNLOCK_WORST_CASE_MS = BleOperationRetryPolicy.CONNECT_BUDGET_MS + UNLOCK_RESPONSE_TIMEOUT_MS
 
         /** The original app accepts local openers whose advertised name contains YILA, except remotes. */
         fun isYiLaOpenerName(name: String): Boolean {
@@ -108,6 +114,9 @@ class BleDoorController(context: Context) {
     private var batteryWindowTargetCount = 0
     private var batteryWindowExactAddressCount = 0
     private var batteryWindowValidLevelCount = 0
+    /** The system scan quota is per app, so all scanners must share one budget. */
+    private val scanBudget = BleScanStartBudget(SystemClock::elapsedRealtime)
+    private var presenceDevice: BluetoothDevice? = null
     private val discoveryScanner = BleScanWindow(
         scannerProvider = { adapter?.bluetoothLeScanner },
         canScan = { hasBluetoothPermission() && isBluetoothEnabled() },
@@ -115,6 +124,7 @@ class BleDoorController(context: Context) {
         restartDelayMs = SCAN_RESTART_DELAY_MS,
         label = "discovery",
         handler = mainHandler,
+        budget = scanBudget,
         handleScanResult = { _, result -> consumeDiscoveryScanResult(result) },
     )
     private val presenceScanner = BleScanWindow(
@@ -124,6 +134,7 @@ class BleDoorController(context: Context) {
         restartDelayMs = SCAN_RESTART_DELAY_MS,
         label = "presence",
         handler = mainHandler,
+        budget = scanBudget,
         filtersProvider = ::presenceScanFilters,
         handleScanResult = { windowId, result -> consumePresenceScanResult(windowId, result) },
         handleWindowFinished = ::finishPresenceScanWindow,
@@ -135,6 +146,7 @@ class BleDoorController(context: Context) {
         restartDelayMs = SCAN_RESTART_DELAY_MS,
         label = "battery",
         handler = mainHandler,
+        budget = scanBudget,
         handleScanResult = { windowId, result ->
             batteryWindowResultCount += 1
             consumeBatteryScanResult(windowId, result)
@@ -148,6 +160,11 @@ class BleDoorController(context: Context) {
     )
     private var pendingOperation: PendingOperation = PendingOperation.None
     private var operationTimeout: Runnable? = null
+    private var operationDeadlineAtMs = 0L
+    private var operationCommandSent = false
+    private var retryOperationAfterRelease = false
+    private var operationRetry: Runnable? = null
+    private var operationDeadline: Runnable? = null
     private val diagnostics = BleConnectionDiagnostics(TAG)
     private val gattSession = BleGattSession(appContext, object : BleGattSessionListener {
         override fun onLinkConnecting(address: String, purpose: BleConnectionPurpose) {
@@ -183,7 +200,7 @@ class BleDoorController(context: Context) {
 
     private sealed interface PendingOperation {
         data object None : PendingOperation
-        data class Pairing(val password: String) : PendingOperation
+        data class Pairing(val address: String, val password: String) : PendingOperation
         data class Unlock(
             val profile: DeviceProfile,
             val onComplete: ((success: Boolean) -> Unit)? = null,
@@ -262,6 +279,69 @@ class BleDoorController(context: Context) {
         operationTimeout = null
     }
 
+    /** Drops every pending connect-retry state; call wherever pendingOperation is cleared. */
+    private fun cancelOperationRetry() {
+        operationRetry?.let(mainHandler::removeCallbacks)
+        operationRetry = null
+        operationDeadline?.let(mainHandler::removeCallbacks)
+        operationDeadline = null
+        retryOperationAfterRelease = false
+    }
+
+    private fun beginOperationBudget(needsConnect: Boolean) {
+        cancelOperationRetry()
+        operationCommandSent = false
+        operationDeadlineAtMs = SystemClock.elapsedRealtime() + BleOperationRetryPolicy.CONNECT_BUDGET_MS
+        if (!needsConnect) return
+        operationDeadline = Runnable {
+            operationDeadline = null
+            if (pendingOperation is PendingOperation.None || operationCommandSent ||
+                gattSession.phase == BleConnectionPhase.READY
+            ) return@Runnable
+            diagnostics.log("operation_deadline", "budgetMs=${BleOperationRetryPolicy.CONNECT_BUDGET_MS}")
+            cancelOperationRetry()
+            val operation = pendingOperation
+            pendingOperation = PendingOperation.None
+            notifyUnlockComplete(operation, success = false)
+            _state.value = if (operation is PendingOperation.Pairing) {
+                BleState.Error(text(R.string.error_pairing_connection_timeout))
+            } else {
+                BleState.Error(text(R.string.error_connection_timeout))
+            }
+            if (gattSession.phase != BleConnectionPhase.DISCONNECTED) {
+                gattSession.release("operation_deadline", waitForFreshAdvertisement = presenceMonitoringActive)
+            } else {
+                // No release callback will follow, so resume presence scanning here.
+                resumePresenceAfterRelease("operation_deadline")
+            }
+        }.also { mainHandler.postDelayed(it, BleOperationRetryPolicy.CONNECT_BUDGET_MS) }
+    }
+
+    /** Ends a queued operation that cannot even start connecting, keeping the precise error. */
+    private fun failPendingOperation(error: BleState.Error) {
+        val operation = pendingOperation
+        pendingOperation = PendingOperation.None
+        cancelOperationRetry()
+        cancelOperationTimeout()
+        notifyUnlockComplete(operation, success = false)
+        _state.value = error
+    }
+
+    private fun scheduleOperationRetry() {
+        operationRetry?.let(mainHandler::removeCallbacks)
+        operationRetry = Runnable {
+            operationRetry = null
+            if (gattSession.phase != BleConnectionPhase.DISCONNECTED) return@Runnable
+            when (val operation = pendingOperation) {
+                PendingOperation.None -> Unit
+                is PendingOperation.Pairing ->
+                    connectAddress(operation.address, BleConnectionPurpose.PAIRING)
+                is PendingOperation.Unlock ->
+                    connectAddress(operation.profile.address, BleConnectionPurpose.UNLOCK)
+            }
+        }.also { mainHandler.postDelayed(it, BleOperationRetryPolicy.RETRY_DELAY_MS) }
+    }
+
     private fun scheduleBackgroundRelease(reason: String) {
         if (appInForeground || pendingOperation !is PendingOperation.None) return
         backgroundRelease?.let(mainHandler::removeCallbacks)
@@ -336,6 +416,7 @@ class BleDoorController(context: Context) {
         val address = profile.address.trim().uppercase()
         val sameTarget = presenceMonitoringActive &&
             presenceLockedAddress.equals(address, ignoreCase = true)
+        if (presenceDevice?.address?.equals(address, ignoreCase = true) != true) presenceDevice = null
         stopScan()
         stopBatteryScan()
         if (!sameTarget) presenceScanner.stop()
@@ -377,7 +458,13 @@ class BleDoorController(context: Context) {
                 // A user-selected profile may differ from the old active link.
                 // Release the old link before waiting for the new opener's signal.
                 closeCurrentLinkForDifferentAddress(address)
-                publishOpenerConnection(OpenerConnectionStatus.NOT_FOUND, address)
+                // Re-issuing the call for the same opener must not discard a signal it just saw.
+                val signalFresh = sameTarget &&
+                    OpenerConnectionPolicy.isSignalFresh(presenceLastSeenAtMs, System.currentTimeMillis())
+                publishOpenerConnection(
+                    if (signalFresh) OpenerConnectionStatus.DISCOVERED else OpenerConnectionStatus.NOT_FOUND,
+                    address,
+                )
                 startPresenceScanWindow()
             }
         }
@@ -471,6 +558,7 @@ class BleDoorController(context: Context) {
                     "firstTarget=$firstTarget count=$presenceWindowTargetCount",
             )
         }
+        presenceDevice = device
         presenceWindowHadTarget = true
         presenceLastRssi = rssi
         presenceLastSeenAtMs = System.currentTimeMillis()
@@ -533,6 +621,7 @@ class BleDoorController(context: Context) {
         val current = gattSession.address
         if (current.isNullOrBlank() || current.equals(address, ignoreCase = true)) return
         pendingOperation = PendingOperation.None
+        cancelOperationRetry()
         gattSession.release("switch_profile", waitForFreshAdvertisement = false)
         _connectionState.value = BleConnectionState.Disconnected
     }
@@ -685,8 +774,16 @@ class BleDoorController(context: Context) {
             return
         }
         cancelOperationTimeout()
-        pendingOperation = PendingOperation.Pairing(normalizedPassword)
-        connectAddress(device.device.address, BleConnectionPurpose.PAIRING)
+        val address = device.device.address.trim().uppercase()
+        pendingOperation = PendingOperation.Pairing(address, normalizedPassword)
+        val linkReady = gattSession.phase == BleConnectionPhase.READY &&
+            gattSession.address.equals(address, ignoreCase = true)
+        beginOperationBudget(needsConnect = !linkReady)
+        if (linkReady) {
+            sendPendingOperation()
+        } else {
+            connectAddress(address, BleConnectionPurpose.PAIRING)
+        }
     }
 
     @SuppressLint("MissingPermission")
@@ -708,6 +805,7 @@ class BleDoorController(context: Context) {
             return
         }
         pendingOperation = PendingOperation.None
+        cancelOperationRetry()
         connectAddress(address, BleConnectionPurpose.EXPLICIT_CONNECT)
     }
 
@@ -729,16 +827,16 @@ class BleDoorController(context: Context) {
         backgroundRelease?.let(mainHandler::removeCallbacks)
         backgroundRelease = null
         if (!hasBluetoothPermission()) {
-            _state.value = BleState.Error(text(R.string.error_bluetooth_permission))
+            failPendingOperation(BleState.Error(text(R.string.error_bluetooth_permission)))
             return
         }
         if (!isBluetoothEnabled()) {
-            _state.value = BleState.Error(text(R.string.error_bluetooth_disabled))
+            failPendingOperation(BleState.Error(text(R.string.error_bluetooth_disabled)))
             return
         }
         val normalizedAddress = address.trim().uppercase()
         if (!BluetoothAdapter.checkBluetoothAddress(normalizedAddress)) {
-            _state.value = BleState.Error(text(R.string.error_address_invalid))
+            failPendingOperation(BleState.Error(text(R.string.error_address_invalid)))
             return
         }
         val sessionAddress = gattSession.address
@@ -778,7 +876,9 @@ class BleDoorController(context: Context) {
         batteryScanner.stop()
         cancelOperationTimeout()
         _connectionState.value = BleConnectionState.Disconnected
-        if (!gattSession.connect(normalizedAddress, purpose)) {
+        val scannedDevice = presenceDevice?.takeIf { it.address.equals(normalizedAddress, ignoreCase = true) }
+            ?: _devices.value.firstOrNull { it.device.address.equals(normalizedAddress, ignoreCase = true) }?.device
+        if (!gattSession.connect(normalizedAddress, purpose, scannedDevice)) {
             if (BuildConfig.DEBUG) {
                 Log.d(
                     TAG,
@@ -799,9 +899,12 @@ class BleDoorController(context: Context) {
         cancelOperationTimeout()
         pendingOperation = PendingOperation.Unlock(profile, onComplete)
         val address = profile.address.trim().uppercase()
-        if (gattSession.phase == BleConnectionPhase.READY &&
+        // Show the request as accepted right away; it is sent as soon as the link is ready.
+        _state.value = BleState.Unlocking(address)
+        val linkReady = gattSession.phase == BleConnectionPhase.READY &&
             gattSession.address.equals(address, ignoreCase = true)
-        ) {
+        beginOperationBudget(needsConnect = !linkReady)
+        if (linkReady) {
             sendPendingOperation()
         } else {
             connectAddress(address, BleConnectionPurpose.UNLOCK)
@@ -818,6 +921,7 @@ class BleDoorController(context: Context) {
         stopBatteryScan()
         val operation = pendingOperation
         pendingOperation = PendingOperation.None
+        cancelOperationRetry()
         notifyUnlockComplete(operation, success = false)
         cancelOperationTimeout()
         gattSession.closeNow("explicit_disconnect", waitForFreshAdvertisement = false)
@@ -840,6 +944,7 @@ class BleDoorController(context: Context) {
         backgroundRelease = null
         val operation = pendingOperation
         pendingOperation = PendingOperation.None
+        cancelOperationRetry()
         notifyUnlockComplete(operation, success = false)
         cancelOperationTimeout()
         gattSession.closeNow(
@@ -871,6 +976,7 @@ class BleDoorController(context: Context) {
             val operation = pendingOperation
             val pairing = operation is PendingOperation.Pairing
             pendingOperation = PendingOperation.None
+            cancelOperationRetry()
             notifyUnlockComplete(operation, success = false)
             _state.value = if (pairing) {
                 BleState.Error(text(R.string.error_pairing_service_not_ready))
@@ -888,10 +994,11 @@ class BleDoorController(context: Context) {
                     UnlockProtocol.buildPasswordPacket(operation.password)
                 } catch (error: IllegalArgumentException) {
                     pendingOperation = PendingOperation.None
+                    cancelOperationRetry()
                     _state.value = BleState.Error(error.message ?: text(R.string.error_invalid_password_parameter))
                     return
                 }
-                timeoutMs = 13_000L
+                timeoutMs = PAIRING_RESPONSE_TIMEOUT_MS
                 _state.value = BleState.Pairing(address)
             }
             is PendingOperation.Unlock -> {
@@ -899,11 +1006,12 @@ class BleDoorController(context: Context) {
                     UnlockProtocol.buildOpenPacket(operation.profile)
                 } catch (error: IllegalArgumentException) {
                     pendingOperation = PendingOperation.None
+                    cancelOperationRetry()
                     notifyUnlockComplete(operation, success = false)
                     _state.value = BleState.Error(error.message ?: text(R.string.error_unlock_parameter_invalid))
                     return
                 }
-                timeoutMs = 8_000L
+                timeoutMs = UNLOCK_RESPONSE_TIMEOUT_MS
                 _state.value = BleState.Unlocking(address)
             }
         }
@@ -915,6 +1023,7 @@ class BleDoorController(context: Context) {
                 diagnostics.log("operation_timeout", "timeoutMs=$timeoutMs")
                 val operation = pendingOperation
                 pendingOperation = PendingOperation.None
+                cancelOperationRetry()
                 notifyUnlockComplete(operation, success = false)
                 _state.value = when (operation) {
                     is PendingOperation.Pairing -> BleState.Error(text(R.string.error_pairing_timeout))
@@ -924,11 +1033,17 @@ class BleDoorController(context: Context) {
             }.also { mainHandler.postDelayed(it, timeoutMs) }
         }
 
-        if (!gattSession.write(packet) && pendingOperation !is PendingOperation.None) {
+        if (gattSession.write(packet)) {
+            // From here the response timeout owns the operation and the command is never resent.
+            operationCommandSent = true
+            operationDeadline?.let(mainHandler::removeCallbacks)
+            operationDeadline = null
+        } else if (pendingOperation !is PendingOperation.None) {
             cancelOperationTimeout()
             val operation = pendingOperation
             val pairing = operation is PendingOperation.Pairing
             pendingOperation = PendingOperation.None
+            cancelOperationRetry()
             notifyUnlockComplete(operation, success = false)
             _state.value = if (pairing) {
                 BleState.Error(text(R.string.error_pairing_service_not_ready))
@@ -943,10 +1058,10 @@ class BleDoorController(context: Context) {
         if (presenceMonitoringActive && presenceProfile?.address.equals(address, ignoreCase = true)) {
             publishOpenerConnection(OpenerConnectionStatus.CONNECTING, address)
         }
-        _state.value = if (pendingOperation is PendingOperation.Pairing) {
-            BleState.Pairing(address)
-        } else {
-            BleState.Connecting(address)
+        _state.value = when (pendingOperation) {
+            is PendingOperation.Pairing -> BleState.Pairing(address)
+            is PendingOperation.Unlock -> BleState.Unlocking(address)
+            PendingOperation.None -> BleState.Connecting(address)
         }
     }
 
@@ -972,6 +1087,7 @@ class BleDoorController(context: Context) {
         val address = gattSession.address.orEmpty()
         val operation = pendingOperation
         pendingOperation = PendingOperation.None
+        cancelOperationRetry()
         when (operation) {
             is PendingOperation.Pairing -> {
                 _state.value = if (UnlockProtocol.isSuccess(bytes)) {
@@ -1006,14 +1122,31 @@ class BleDoorController(context: Context) {
         purpose: BleConnectionPurpose,
         failure: BleGattFailure,
     ) {
+        if (pendingOperation !is PendingOperation.None &&
+            BleOperationRetryPolicy.shouldRetry(
+                failure,
+                operationCommandSent,
+                SystemClock.elapsedRealtime(),
+                operationDeadlineAtMs,
+            )
+        ) {
+            // Keep the operation queued; the reconnect starts once the session is released.
+            retryOperationAfterRelease = true
+            if (BuildConfig.DEBUG) {
+                Log.d(TAG, "BLE_FAILURE_RETRY purpose=${purpose.name.lowercase()} failure=$failure")
+            }
+            return
+        }
         if (BuildConfig.DEBUG) Log.d(TAG, "BLE_FAILURE purpose=${purpose.name.lowercase()} failure=$failure")
         val operation = pendingOperation
         val pairing = operation is PendingOperation.Pairing
         pendingOperation = PendingOperation.None
+        cancelOperationRetry()
         notifyUnlockComplete(operation, success = false)
         _state.value = when (failure) {
             BleGattFailure.ConnectionStartFailed,
             BleGattFailure.ConnectionTimeout,
+            BleGattFailure.SetupTimeout,
             -> if (pairing) {
                 BleState.Error(text(R.string.error_pairing_connection_timeout))
             } else {
@@ -1073,6 +1206,12 @@ class BleDoorController(context: Context) {
             )
         }
         _connectionState.value = BleConnectionState.Disconnected
+        val retryOperation = retryOperationAfterRelease
+        retryOperationAfterRelease = false
+        if (retryOperation && pendingOperation !is PendingOperation.None) {
+            scheduleOperationRetry()
+            return
+        }
         if (_state.value is BleState.Connecting || _state.value is BleState.Ready) {
             _state.value = BleState.Idle
         }
@@ -1091,6 +1230,10 @@ class BleDoorController(context: Context) {
             connectAddress(queued.first, queued.second)
             return
         }
+        resumePresenceAfterRelease(reason)
+    }
+
+    private fun resumePresenceAfterRelease(reason: String) {
         if (presenceMonitoringActive &&
             reason != "monitoring_stopped" && reason != "explicit_disconnect"
         ) {

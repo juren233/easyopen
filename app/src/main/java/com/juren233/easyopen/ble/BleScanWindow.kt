@@ -19,6 +19,7 @@ internal class BleScanWindow(
     private val restartDelayMs: Long,
     private val label: String,
     private val handler: Handler,
+    private val budget: BleScanStartBudget,
     private val filtersProvider: () -> List<ScanFilter> = { emptyList() },
     private val handleScanResult: (windowId: Int, result: ScanResult) -> Unit,
     private val handleBatchScanResults: (windowId: Int, results: List<ScanResult>) -> Unit = { _, _ -> },
@@ -73,6 +74,13 @@ internal class BleScanWindow(
             return
         }
         stopWindow("replace_window")
+        // The system silently drops startScan beyond its per-app quota, so wait instead.
+        val startDelayMs = budget.delayUntilStartAllowed(rotation = false)
+        if (startDelayMs > 0L) {
+            log("start_deferred_by_quota", "delayMs=$startDelayMs")
+            scheduleRestart(startDelayMs)
+            return
+        }
         val currentWindowId = ++windowId
         windowStartedAtMs = SystemClock.elapsedRealtime()
         callbackCount = 0
@@ -129,6 +137,7 @@ internal class BleScanWindow(
             "start_scan_called",
             "window=$currentWindowId filters=${filters.size} mode=low_latency reportDelayMs=0",
         )
+        budget.recordStart()
         runCatching { scanner.startScan(filters, settings, currentCallback) }.onSuccess {
             log("start_scan_returned", "window=$currentWindowId elapsedMs=${elapsedSinceStart()}")
         }.onFailure { error ->
@@ -143,6 +152,10 @@ internal class BleScanWindow(
             handleScanFailed(currentWindowId, -1)
             scheduleRestart()
         }
+        armWindowFinish(currentCallback, currentWindowId, durationMs().coerceAtLeast(1_000L))
+    }
+
+    private fun armWindowFinish(currentCallback: ScanCallback, currentWindowId: Int, delayMs: Long) {
         windowFinish = Runnable {
             if (callback !== currentCallback) return@Runnable
             log(
@@ -151,19 +164,26 @@ internal class BleScanWindow(
                     "firstCallbackMs=${firstCallbackElapsedMs ?: "none"}",
             )
             handleWindowFinished(currentWindowId)
+            // Rotating needs a fresh start; if the quota is short, keep the running scan instead.
+            val rotationDelayMs = budget.delayUntilStartAllowed(rotation = true)
+            if (rotationDelayMs > 0L) {
+                log("rotation_deferred_by_quota", "delayMs=$rotationDelayMs")
+                armWindowFinish(currentCallback, currentWindowId, rotationDelayMs.coerceAtLeast(1_000L))
+                return@Runnable
+            }
             stopWindow("window_finished")
             scheduleRestart()
-        }.also { handler.postDelayed(it, durationMs().coerceAtLeast(1_000L)) }
+        }.also { handler.postDelayed(it, delayMs) }
     }
 
-    private fun scheduleRestart() {
+    private fun scheduleRestart(delayMs: Long = restartDelayMs) {
         if (!active || restart != null) return
-        log("restart_scheduled", "delayMs=$restartDelayMs")
+        log("restart_scheduled", "delayMs=$delayMs")
         restart = Runnable {
             restart = null
             log("restart_triggered")
             startWindow()
-        }.also { handler.postDelayed(it, restartDelayMs) }
+        }.also { handler.postDelayed(it, delayMs) }
     }
 
     @SuppressLint("MissingPermission")

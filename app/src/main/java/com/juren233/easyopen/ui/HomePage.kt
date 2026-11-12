@@ -76,6 +76,7 @@ internal fun HomePage(
             connectionStatus = bleSnapshot.connectionStatus,
             batteryLevel = bleSnapshot.batteryLevel(binding, activeProfile.batteryLevel),
             busy = bleSnapshot.busy,
+            unlocking = bleSnapshot.unlocking,
             canUnlock = bleSnapshot.canUnlock(binding, coreProfile),
             availableUpdate = availableUpdate?.let { HomeUpdateNotice(it.displayVersion) },
         ),

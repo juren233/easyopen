@@ -49,6 +49,7 @@
     <string name="update_available_notice">发现新版本 %1$s，点击查看更新</string>
     <string name="status_connected">已连接</string>
     <string name="status_connecting">连接中</string>
+    <string name="status_unlocking">正在开门</string>
     <string name="status_discovered">已发现</string>
     <string name="status_not_found">未发现</string>
     <string name="status_disconnected">未连接</string>

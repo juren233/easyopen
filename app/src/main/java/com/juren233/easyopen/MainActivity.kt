@@ -22,6 +22,8 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import com.juren233.easyopen.ble.BleDoorController
+import com.juren233.easyopen.data.AppSettingsStore
+import com.juren233.easyopen.data.DeviceStore
 import com.juren233.easyopen.nfc.NfcTagReader
 
 class MainActivity : ComponentActivity() {
@@ -50,6 +52,7 @@ class MainActivity : ComponentActivity() {
                 "dispatchRecords=${com.juren233.easyopen.nfc.NfcCommand.messageFromIntent(intent)?.records?.size ?: 0}",
         )
         nfcReader.handleIntent(intent)
+        startOpenerMonitoringEarly()
         setContent {
             EasyOpenApp(
                 controller = controller,
@@ -63,6 +66,27 @@ class MainActivity : ComponentActivity() {
                 nfcReaderState = nfcReader.state,
             )
         }
+    }
+
+    /**
+     * Starts scanning before the first Compose frame so the opener is usually already
+     * discovered when the home page appears. EasyOpenNavigation re-issues the same call later.
+     */
+    private fun startOpenerMonitoringEarly() {
+        if (!controller.hasBluetoothPermission()) return
+        val preferences = getSharedPreferences("easyopen", MODE_PRIVATE)
+        val devices = DeviceStore.load(preferences)
+        if (!DeviceStore.onboardingComplete(preferences, devices)) return
+        val activeAddress = DeviceStore.activeAddress(preferences, devices)
+        val profile = devices.firstOrNull { it.address.equals(activeAddress, ignoreCase = true) }
+            ?: devices.firstOrNull()
+            ?: return
+        val settings = AppSettingsStore.load(preferences)
+        controller.startOpenerMonitoring(
+            profile = profile,
+            autoConnectEnabled = settings.autoConnectEnabled,
+            autoConnectRssiThreshold = settings.autoConnectRssiThreshold,
+        )
     }
 
     override fun onNewIntent(intent: Intent) {

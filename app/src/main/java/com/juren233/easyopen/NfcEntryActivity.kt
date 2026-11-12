@@ -89,7 +89,7 @@ class NfcEntryActivity : Activity() {
 
     private companion object {
         const val TAG = "NfcEntryActivity"
-        // BleDoorController's unlock operation times out after 8 seconds.
-        const val BLE_UNLOCK_GRACE_PERIOD_MS = 9_000L
+        // Worst case of BleDoorController's unlock (connect budget plus response wait), plus 1 second.
+        const val BLE_UNLOCK_GRACE_PERIOD_MS = BleDoorController.UNLOCK_WORST_CASE_MS + 1_000L
     }
 }
